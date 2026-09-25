@@ -1,5 +1,6 @@
 from datetime import datetime
 import io
+import unicodedata
 import pandas as pd
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
@@ -38,6 +39,14 @@ def fmt_vnd(amount):
 
 def fmt_vnd_short(amount):
     return f"{int(amount):,}".replace(",", ".")
+
+
+def strip_vietnamese_accents(text):
+    if not text:
+        return ""
+    text = text.replace("Đ", "D").replace("đ", "d")
+    nfkd_form = unicodedata.normalize("NFKD", text)
+    return "".join([c for c in nfkd_form if not unicodedata.combining(c)])
 
 
 def get_sam_multipliers(prod_code, age):
@@ -251,7 +260,7 @@ if use_pa:
 
 
 # ---------------------------------------------------------
-# 3. ENGINE TÍNH TOÁN DÒNG TIỀN (CÓ TÍCH HỢP HỆ SỐ GIỚI TÍNH)
+# 3. ENGINE TÍNH TOÁN DÒNG TIỀN
 # ---------------------------------------------------------
 def generate_ul_projection(
     prod_code,
@@ -270,7 +279,6 @@ def generate_ul_projection(
     account_value = 0
     init_fee_rate = {1: 0.50, 2: 0.30, 3: 0.20, 4: 0.20, 5: 0.20}
 
-    # Hệ số điều chỉnh phí rủi ro theo giới tính (Nam = 1.0, Nữ = 0.85 do tỷ lệ rủi ro thấp hơn)
     gender_factor = 1.0 if gender == "Nam" else 0.85
 
     sa_to_tp_ratio = sa / tp if tp > 0 else 0
@@ -322,7 +330,7 @@ def generate_ul_projection(
             if pol_year == 10:
                 bonus += tp * special_bonus_rate
 
-        else:  # UL3 - Chỉ có thưởng định kỳ mỗi 3 năm
+        else:
             if pol_year % 3 == 0:
                 bonus += tp * 0.04
 
@@ -358,7 +366,7 @@ def generate_ul_projection(
 
 
 # ---------------------------------------------------------
-# 4. HÀM TẠO FILE PDF
+# 4. HÀM TẠO FILE PDF (KHẮC PHỤC TRIỆT ĐỂ LỖI FONT & TRÀN CỘT)
 # ---------------------------------------------------------
 def create_pdf_report(
     fullname,
@@ -377,70 +385,75 @@ def create_pdf_report(
     c = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
 
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(50, height - 40, "BANG MINH HOA QUYEN LOI BAO HIEM")
-    c.setFont("Helvetica-Bold", 12)
-    c.setFillColorRGB(0, 0.3, 0.6)
-    c.drawString(
-        50,
-        height - 60,
-        f"San pham: {prod_name.replace('Hạnh Phúc', 'Hanh Phuc').replace('Bình An', 'Binh An')} ({gender})",
-    )
+    # Chuẩn hóa chuỗi không dấu để không bị lỗi ký tự ô vuông đen
+    clean_name = strip_vietnamese_accents(fullname)
+    clean_prod = strip_vietnamese_accents(prod_name)
+    clean_gender = strip_vietnamese_accents(gender)
 
-    c.setFont("Helvetica", 10)
+    c.setFont("Helvetica-Bold", 13)
+    c.drawString(35, height - 35, "BANG MINH HOA QUYEN LOI BAO HIEM")
+
+    c.setFont("Helvetica-Bold", 11)
+    c.setFillColorRGB(0, 0.3, 0.6)
+    c.drawString(35, height - 55, f"San pham: {clean_prod} ({clean_gender})")
+
+    c.setFont("Helvetica", 9)
     c.setFillColorRGB(0, 0, 0)
     c.drawString(
-        50,
-        height - 85,
-        f"Khach hang: {fullname} | Gioi tinh: {gender} | Tuoi: {entry_age}",
+        35,
+        height - 75,
+        f"Khach hang: {clean_name} | Tuoi: {entry_age} | Gioi tinh:"
+        f" {clean_gender}",
     )
     c.drawString(
-        50,
-        height - 100,
-        f"STBH chinh: {fmt_vnd(sum_assured)} | Phi co ban: {fmt_vnd(target_premium)}/nam ({prem_term} nam)",
+        35,
+        height - 90,
+        f"STBH chinh: {fmt_vnd_short(sum_assured)} VND | Phi co ban:"
+        f" {fmt_vnd_short(target_premium)} VND/nam ({prem_term} nam)",
     )
 
     rider_str = "Bo tro: "
     if sa_cir1 > 0:
-        rider_str += f"CIR1 ({fmt_vnd(sa_cir1)}) "
+        rider_str += f"CIR1 ({fmt_vnd_short(sa_cir1)} VND) "
     if sa_cir2 > 0:
-        rider_str += f"CIR2 ({fmt_vnd(sa_cir2)}) "
+        rider_str += f"CIR2 ({fmt_vnd_short(sa_cir2)} VND) "
     if sa_pa > 0:
-        rider_str += f"Tai nan ({fmt_vnd(sa_pa)})"
+        rider_str += f"Tai nan ({fmt_vnd_short(sa_pa)} VND)"
     if sa_cir1 == 0 and sa_cir2 == 0 and sa_pa == 0:
         rider_str += "Khong co"
+    c.drawString(35, height - 105, rider_str)
 
-    c.drawString(50, height - 115, rider_str)
-
+    # Tiêu đề bảng với tọa độ X rõ ràng từng cột
     c.setFont("Helvetica-Bold", 8)
-    y_start = height - 140
-    c.drawString(
-        50,
-        y_start,
-        "Nam/Tuoi    Phi Dong     Tong Phi     Thuong     Tu Vong     Gia Tri TK     Hoan Lai",
-    )
-    c.line(50, y_start - 5, width - 50, y_start - 5)
+    y_start = height - 130
+
+    # Vẽ khung tiêu đề
+    c.drawString(35, y_start, "Nam/Tuoi")
+    c.drawString(95, y_start, "Phi Dong")
+    c.drawString(170, y_start, "Tong Phi")
+    c.drawString(245, y_start, "Thuong")
+    c.drawString(310, y_start, "Tu Vong")
+    c.drawString(410, y_start, "Gia Tri TK")
+    c.drawString(500, y_start, "Hoan Lai")
+    c.line(35, y_start - 4, width - 35, y_start - 4)
 
     c.setFont("Helvetica", 8)
-    y = y_start - 20
+    y = y_start - 18
 
     for index, row in df_p.iterrows():
-        if y < 50:
+        if y < 40:
             c.showPage()
             c.setFont("Helvetica", 8)
-            y = height - 50
+            y = height - 40
 
-        line_str = (
-            f"{row['Năm/Tuổi']:<11} "
-            f"{fmt_vnd_short(row['Phí Đóng Dự Kiến']):<12} "
-            f"{fmt_vnd_short(row['Tổng Phí Lũy Kế']):<13} "
-            f"{fmt_vnd_short(row['Thưởng Gắn Bó']):<10} "
-            f"{fmt_vnd_short(row['Quyền Lợi Tử Vong']):<11} "
-            f"{fmt_vnd_short(row['Giá Trị Tài Khoản']):<14} "
-            f"{fmt_vnd_short(row['Giá Trị Hoàn Lại'])}"
-        )
-        c.drawString(50, y, line_str)
-        y -= 15
+        c.drawString(35, y, str(row["Năm/Tuổi"]))
+        c.drawString(95, y, fmt_vnd_short(row["Phí Đóng Dự Kiến"]))
+        c.drawString(170, y, fmt_vnd_short(row["Tổng Phí Lũy Kế"]))
+        c.drawString(245, y, fmt_vnd_short(row["Thưởng Gắn Bó"]))
+        c.drawString(310, y, fmt_vnd_short(row["Quyền Lợi Tử Vong"]))
+        c.drawString(410, y, fmt_vnd_short(row["Giá Trị Tài Khoản"]))
+        c.drawString(500, y, fmt_vnd_short(row["Giá Trị Hoàn Lại"]))
+        y -= 14
 
     c.save()
     buffer.seek(0)
@@ -494,11 +507,16 @@ if not breakeven_df.empty:
     be_acc_val = fmt_vnd(first_be["Giá Trị Tài Khoản"])
 
     st.success(
-        f"💡 **({prod_name} - {gender}):** Ở mức lãi suất giả định 5%/năm, Giá trị tài khoản hợp đồng sẽ **vượt Tổng phí đóng** từ **Năm hợp đồng thứ {be_year}** (lúc khách hàng **{be_age} tuổi**) với số tiền đạt **{be_acc_val}**."
+        f"💡 **({prod_name} - {gender}):** Ở mức lãi suất giả định 5%/năm, Giá"
+        f" trị tài khoản hợp đồng sẽ **vượt Tổng phí đóng** từ **Năm hợp đồng"
+        f" thứ {be_year}** (lúc khách hàng **{be_age} tuổi**) với số tiền đạt"
+        f" **{be_acc_val}**."
     )
 else:
     st.warning(
-        f"💡 **Lưu ý ({prod_name}):** Với mức phí và thời gian đóng phí hiện tại, Giá trị tài khoản chưa vượt Tổng phí đóng trong khoảng thời gian minh họa."
+        f"💡 **Lưu ý ({prod_name}):** Với mức phí và thời gian đóng phí hiện"
+        " tại, Giá trị tài khoản chưa vượt Tổng phí đóng trong khoảng thời"
+        " gian minh họa."
     )
 
 col_title, col_btn = st.columns([3, 1])
