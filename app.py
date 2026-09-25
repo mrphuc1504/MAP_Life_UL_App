@@ -9,7 +9,7 @@ import streamlit as st
 # 1. CẤU HÌNH TRANG WEB
 # ---------------------------------------------------------
 st.set_page_config(
-    page_title="MAP Life UL Illustration Tool",
+    page_title="Tính nhanh MAP Life UL ",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="auto",  # Giữ nguyên tính năng ẩn/hiện linh hoạt của Streamlit
@@ -74,12 +74,12 @@ def get_sam_multipliers(prod_code, age):
             return 5, 25
 
 
-st.title("🛡️ BẢNG MINH HỌA  MAPLIFE UL")
+st.title("🛡️ BẢNG MINH HỌA MAPLIFE UL")
 st.caption(
     "Công cụ hỗ trợ tư vấn & tính toán quyền lợi sản phẩm MAP Life Hạnh Phúc (UL2) & Bình An (UL3)"
 )
 
-# Thêm một thông báo nhắc nhở nhẹ trên mobile giúp người dùng dễ nhận biết góc mở tab
+# Thêm thông báo nhắc nhở nhẹ trên mobile giúp người dùng dễ nhận biết góc mở tab
 st.markdown(
     """
     <div class="mobile-notice">
@@ -92,7 +92,7 @@ st.markdown(
 # ---------------------------------------------------------
 # 2. THANH THÔNG TIN BÊN (SIDEBAR)
 # ---------------------------------------------------------
-st.sidebar.header("📋 THÔNG TIN ")
+st.sidebar.header("📋 THÔNG TIN CẤU HÌNH")
 
 product_choice = st.sidebar.selectbox(
     "Lựa chọn sản phẩm bảo hiểm:",
@@ -424,4 +424,3 @@ if not df_proj.empty:
     )
 else:
     st.warning("⚠️ Không có dữ liệu minh họa. Vui lòng kiểm tra lại Ngày sinh.")
-```eof
