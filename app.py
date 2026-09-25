@@ -1,6 +1,5 @@
 from datetime import datetime
 import pandas as pd
-import plotly.graph_objects as go
 import streamlit as st
 
 # ---------------------------------------------------------
@@ -10,16 +9,14 @@ st.set_page_config(
     page_title="MAP Life UL Illustration Tool",
     page_icon="🛡️",
     layout="wide",
-    initial_sidebar_state="auto",  # Tự động tối ưu giao diện trên Điện thoại
+    initial_sidebar_state="auto",
 )
 
 
-# Hàm định dạng tiền tệ Việt Nam (dấu chấm phân cách)
 def fmt_vnd(amount):
     return f"{int(amount):,}".replace(",", ".") + " VNĐ"
 
 
-# Bảng Hệ số SAM động theo nhóm tuổi
 def get_sam_multipliers(prod_code, age):
     if prod_code == "UL2":
         if age <= 30:
@@ -45,7 +42,7 @@ def get_sam_multipliers(prod_code, age):
             return 5, 25
 
 
-st.title("🛡️ BẢNG MINH HỌA DÒNG TIỀN MAP LIFE UL")
+st.title("🛡️ BẢNG MINH HỌA DÒNG TIỀN BHNT UL MAP LIFE")
 st.caption(
     "Công cụ hỗ trợ tư vấn & tính toán quyền lợi sản phẩm MAP Life Hạnh Phúc (UL2) & Bình An (UL3)"
 )
@@ -84,7 +81,6 @@ st.sidebar.subheader("👤 Thông tin Khách hàng")
 fullname = st.sidebar.text_input("Họ và tên NĐBH", "Tiểu Cường")
 gender = st.sidebar.radio("Giới tính", ["Nam", "Nữ"], horizontal=True)
 
-# BỘ CHỌN NGÀY / THÁNG / NĂM SINH
 col_d, col_m, col_y = st.sidebar.columns(3)
 with col_y:
     birth_year = col_y.selectbox(
@@ -115,7 +111,6 @@ st.sidebar.info(
 st.sidebar.markdown("---")
 st.sidebar.subheader("💰 Thông tin Hợp đồng")
 
-# 1. NHẬP PHÍ BẢO HIỂM CƠ BẢN
 tp_in_millions = st.sidebar.number_input(
     "Phí bảo hiểm cơ bản hàng năm (Triệu VNĐ):",
     min_value=0.0,
@@ -127,14 +122,10 @@ tp_in_millions = st.sidebar.number_input(
 target_premium = int(tp_in_millions * 1_000_000)
 st.sidebar.success(f"👉 **Phí đóng:** `{fmt_vnd(target_premium)}`")
 
-# LẤY HỆ SỐ SAM THEO TUỔI
 sam_min_mult, sam_max_mult = get_sam_multipliers(prod_code, entry_age)
-
-# TÍNH HẠN MỨC STBH ĐỘNG THEO PHÍ ĐÓNG VÀ TUỔI
 dynamic_min_sa = max(abs_min_sa, target_premium * sam_min_mult)
 dynamic_max_sa = target_premium * sam_max_mult
 
-# 2. THỜI HẠN ĐÓNG PHÍ
 prem_term = st.sidebar.slider(
     "Thời hạn đóng phí dự kiến (năm):",
     min_value=min_term,
@@ -143,7 +134,6 @@ prem_term = st.sidebar.slider(
     key="term_slider",
 )
 
-# 3. NHẬP SỐ TIỀN BẢO HIỂM (STBH)
 sa_in_millions = st.sidebar.number_input(
     "Số Tiền Bảo Hiểm (STBH) (Triệu VNĐ):",
     min_value=0.0,
@@ -155,14 +145,12 @@ sa_in_millions = st.sidebar.number_input(
 sum_assured = int(sa_in_millions * 1_000_000)
 st.sidebar.success(f"👉 **STBH:** `{fmt_vnd(sum_assured)}`")
 
-# GHI CHÚ RÀNG BUỘC ĐỘNG
 st.sidebar.caption(
     f"📌 *Hạn mức STBH động ({entry_age} tuổi, phí {fmt_vnd(target_premium)}):*\n"
     f"- Tối thiểu: **{fmt_vnd(dynamic_min_sa)}**\n"
     f"- Tối đa: **{fmt_vnd(dynamic_max_sa)}**"
 )
 
-# CẢNH BÁO NẾU VƯỢT HẠN MỨC
 if sum_assured < dynamic_min_sa or sum_assured > dynamic_max_sa:
     st.sidebar.warning(
         f"⚠️ STBH vượt ngoài dải thẩm định động theo phí ({fmt_vnd(dynamic_min_sa)} - {fmt_vnd(dynamic_max_sa)})"
@@ -170,7 +158,7 @@ if sum_assured < dynamic_min_sa or sum_assured > dynamic_max_sa:
 
 
 # ---------------------------------------------------------
-# 3. ENGINE TÍNH TOÁN DÒNG TIỀN (ĐÃ CẬP NHẬT ĐỦ THƯỞNG)
+# 3. ENGINE TÍNH TOÁN DÒNG TIỀN
 # ---------------------------------------------------------
 def generate_ul_projection(
     prod_code, entry_age, tp, prem_term, sa, interest_rate=0.05
@@ -179,6 +167,13 @@ def generate_ul_projection(
     accumulated_prem = 0
     account_value = 0
     init_fee_rate = {1: 0.50, 2: 0.30, 3: 0.20, 4: 0.20, 5: 0.20}
+
+    sa_to_tp_ratio = sa / tp if tp > 0 else 0
+
+    if prod_code == "UL2":
+        special_bonus_rate = min(1.0, max(0.2, sa_to_tp_ratio / 90.0))
+    else:
+        special_bonus_rate = min(0.5, max(0.1, (sa_to_tp_ratio / 100.0) * 0.5))
 
     max_years = max(1, 100 - entry_age)
 
@@ -191,10 +186,8 @@ def generate_ul_projection(
         fee_rate = init_fee_rate.get(pol_year, 0.02)
         invest_prem = yearly_prem * (1 - fee_rate)
 
-        # tính đầy đủ các khoản thưởng
         bonus = 0
         if prod_code == "UL2":
-            # 1. Thưởng duy trì hợp đồng định kỳ (Loyalty Bonus)
             if pol_year == 4:
                 bonus += tp * 0.06
             elif pol_year == 8:
@@ -202,18 +195,15 @@ def generate_ul_projection(
             elif pol_year in [12, 16, 20]:
                 bonus += tp * 0.18
 
-            # 2. Thưởng Đặc Biệt (Special Bonus) mốc Năm 10 (100% Phí cơ bản)
             if pol_year == 10:
-                bonus += tp * 1.00
+                bonus += tp * special_bonus_rate
 
-        else:  # UL3
-            # 1. Thưởng định kỳ mỗi 3 năm
+        else:
             if pol_year in [3, 6, 9, 12, 15, 18]:
                 bonus += tp * 0.04
 
-            # 2. Thưởng Đặc Biệt mốc Năm 10 (50% Phí cơ bản)
             if pol_year == 10:
-                bonus += tp * 0.50
+                bonus += tp * special_bonus_rate
 
         coi_rate = 0.0015 + (current_age * 0.0001)
         coi_fee = sa * coi_rate
@@ -247,7 +237,7 @@ def generate_ul_projection(
 
 
 # ---------------------------------------------------------
-# 4. HIỂN THỊ KẾT QUẢ VÀ TỰ ĐỘNG TÍNH NĂM HÒA VỐN
+# 4. HIỂN THỊ KẾT QUẢ VÀ BẢNG DÒNG TIỀN CHI TIẾT
 # ---------------------------------------------------------
 df_proj = generate_ul_projection(
     prod_code, entry_age, target_premium, prem_term, sum_assured
@@ -272,81 +262,42 @@ if not breakeven_df.empty:
     be_acc_val = fmt_vnd(first_be["Giá Trị Tài Khoản"])
 
     st.success(
-        f"💡 **({prod_name}):** Ở mức lãi suất giả định 5%/năm, Giá trị tài khoản hợp đồng sẽ **vượt Tổng phí đóng** từ **Năm hợp đồng thứ {be_year}** (lúc khách hàng **{be_age} tuổi**) với số tiền đạt **{be_acc_val}**."
+        f"💡 **Điểm nổi bật ({prod_name}):** Ở mức lãi suất giả định 5%/năm, Giá trị tài khoản hợp đồng sẽ **vượt Tổng phí đóng** từ **Năm hợp đồng thứ {be_year}** (lúc khách hàng **{be_age} tuổi**) với số tiền đạt **{be_acc_val}**."
     )
 else:
     st.warning(
         f"💡 **Lưu ý ({prod_name}):** Với mức phí và thời gian đóng phí hiện tại, Giá trị tài khoản chưa vượt Tổng phí đóng trong khoảng thời gian minh họa."
     )
 
-tab1, tab2 = st.tabs(["📈 Biểu Đồ Tăng Trưởng", "📋 Bảng Dòng Tiền Chi Tiết"])
+st.subheader("📋 Bảng Dòng Tiền Chi Tiết Hợp Đồng")
 
-with tab1:
-    fig = go.Figure()
-    fig.add_trace(
-        go.Scatter(
-            x=df_proj["Năm HĐ"],
-            y=df_proj["Giá Trị Tài Khoản"],
-            mode="lines+markers",
-            name="Giá Trị Tài Khoản (GTTK)",
-            line=dict(color="#00529B", width=3),
-        )
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=df_proj["Năm HĐ"],
-            y=df_proj["Tổng Phí Lũy Kế"],
-            mode="lines",
-            name="Tổng Phí Đã Đóng",
-            line=dict(color="#DC2626", dash="dash"),
-        )
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=df_proj["Năm HĐ"],
-            y=df_proj["Giá Trị Hoàn Lại"],
-            mode="lines",
-            name="Giá Trị Hoàn Lại",
-            line=dict(color="#16A34A"),
-        )
-    )
+if not df_proj.empty:
+    df_display = df_proj.copy().fillna(0)
+    money_cols = [
+        "Phí Đóng Dự Kiến",
+        "Tổng Phí Lũy Kế",
+        "Phí Đem Đầu Tư",
+        "Thưởng Gắn Bó",
+        "Quyền Lợi Tử Vong",
+        "Giá Trị Tài Khoản",
+        "Giá Trị Hoàn Lại",
+    ]
 
-    fig.update_layout(
-        xaxis_title="Năm Hợp Đồng",
-        yaxis_title="Số tiền (VNĐ)",
-        hovermode="x unified",
-        height=450,
-    )
-    st.plotly_chart(fig, use_container_width=True)
+    for col in money_cols:
+        df_display[col] = df_display[col].apply(fmt_vnd)
 
-with tab2:
-    if not df_proj.empty:
-        df_display = df_proj.copy().fillna(0)
-        money_cols = [
+    st.dataframe(
+        df_display[[
+            "Năm/Tuổi",
             "Phí Đóng Dự Kiến",
             "Tổng Phí Lũy Kế",
-            "Phí Đem Đầu Tư",
             "Thưởng Gắn Bó",
             "Quyền Lợi Tử Vong",
             "Giá Trị Tài Khoản",
             "Giá Trị Hoàn Lại",
-        ]
-
-        for col in money_cols:
-            df_display[col] = df_display[col].apply(fmt_vnd)
-
-        st.dataframe(
-            df_display[[
-                "Năm/Tuổi",
-                "Phí Đóng Dự Kiến",
-                "Tổng Phí Lũy Kế",
-                "Thưởng Gắn Bó",
-                "Quyền Lợi Tử Vong",
-                "Giá Trị Tài Khoản",
-                "Giá Trị Hoàn Lại",
-            ]],
-            use_container_width=True,
-            height=500,
-        )
-    else:
-        st.warning("⚠️ Không có dữ liệu minh họa. Vui lòng kiểm tra lại Ngày sinh.")
+        ]],
+        use_container_width=True,
+        height=550,
+    )
+else:
+    st.warning("⚠️ Không có dữ liệu minh họa. Vui lòng kiểm tra lại Ngày sinh.")
