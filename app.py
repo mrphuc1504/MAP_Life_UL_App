@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 import io
 import unicodedata
 import pandas as pd
@@ -31,30 +31,8 @@ mobile_css = """
     body {
         font-size: 15px;
     }
-    .stNumberInput, .stSelectbox, .stRadio, .stSlider {
+    .stNumberInput, .stSelectbox, .stRadio, .stSlider, .stDateInput {
         margin-bottom: 8px;
-    }
-
-    /* Ép cụm Ngày/Tháng/Năm nằm gọn trên 1 hàng, chia đều 33% và KHÔNG bị tràn màn hình */
-    [data-testid="stHorizontalBlock"] {
-        display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
-        gap: 4px !important;
-        width: 100% !important;
-        box-sizing: border-box !important;
-    }
-    [data-testid="stHorizontalBlock"] > [data-testid="column"] {
-        flex: 1 1 33% !important;
-        min-width: 0px !important;
-        max-width: 33% !important;
-        overflow: hidden !important;
-    }
-    /* Thu nhỏ chữ và padding của selectbox ngày sinh cho vừa khít mobile */
-    [data-testid="stHorizontalBlock"] div[data-baseweb="select"] > div {
-        padding-left: 2px !important;
-        padding-right: 2px !important;
-        font-size: 13px !important;
     }
     </style>
 """
@@ -139,27 +117,25 @@ st.markdown("### 👤 2. Thông tin KH")
 fullname = st.text_input("Họ và tên NĐBH", "Lộc Đại Phu")
 gender = st.radio("Giới tính", ["Nam", "Nữ"], horizontal=True)
 
-st.markdown("🗓️ **Ngày tháng năm sinh:**")
-col_d, col_m, col_y = st.columns(3)
-with col_d:
-    birth_day = col_d.selectbox("Ng", range(1, 32), index=0, key="b_day")
-with col_m:
-    birth_month = col_m.selectbox("Th", range(1, 13), index=0, key="b_month")
-with col_y:
-    birth_year = col_y.selectbox(
-        "Năm", range(1950, 2027), index=40, key="b_year"
-    )
+# Dùng st.date_input chuẩn, gọn gàng, tự nhiên
+birth_date = st.date_input(
+    "Ngày tháng năm sinh",
+    value=date(1990, 4, 15),
+    min_value=date(1950, 1, 1),
+    max_value=date.today(),
+    key="dob_input",
+)
 
-today = datetime.now()
-try:
-    dob = datetime(birth_year, birth_month, birth_day)
-    entry_age = (
-        today.year
-        - dob.year
-        - ((today.month, today.day) < (dob.month, dob.day))
-    )
-except ValueError:
-    entry_age = today.year - birth_year
+birth_day = birth_date.day
+birth_month = birth_date.month
+birth_year = birth_date.year
+
+today = date.today()
+entry_age = (
+    today.year
+    - birth_date.year
+    - ((today.month, today.day) < (birth_date.month, birth_date.day))
+)
 
 st.info(
     f"💡 Ngày sinh: **{birth_day:02d}/{birth_month:02d}/{birth_year}** | Giới"
@@ -638,6 +614,7 @@ if not breakeven_df.empty:
 else:
     st.warning("💡 Giá trị tài khoản chưa vượt Tổng phí đóng trong minh họa.")
 
+safe_filename_name = remove_accents(fullname).replace(' ', '_')
 pdf_buffer = create_pdf_report(
     fullname,
     prod_name,
@@ -654,7 +631,7 @@ pdf_buffer = create_pdf_report(
 st.download_button(
     label="📥 Tải Minh Họa Nháp (PDF)",
     data=pdf_buffer,
-    file_name=f"Minh_Hoa_Dich_Vu_{prod_code}_{fullname.replace(' ', '_')}.pdf",
+    file_name=f"Minh_Hoa_Dich_Vu_{prod_code}_{safe_filename_name}.pdf",
     mime="application/pdf",
     type="primary",
     use_container_width=True,
