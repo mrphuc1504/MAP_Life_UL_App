@@ -25,12 +25,11 @@ mobile_css = """
     iframe[src*="streamlit.app"] {display: none !important;}
     button[kind="header"] {display: none !important;}
 
-    /* Tối ưu font và khoảng cách trên di động */
     body {
-        font-size: 16px;
+        font-size: 15px;
     }
     .stNumberInput, .stSelectbox, .stRadio, .stSlider {
-        margin-bottom: 10px;
+        margin-bottom: 8px;
     }
     </style>
 """
@@ -436,10 +435,10 @@ def create_pdf_report(
 
 
 # ---------------------------------------------------------
-# 5. HIỂN THỊ KẾT QUẢ VÀ NÚT TẢI PDF
+# 5. HIỂN THỊ KẾT QUẢ GỌN GÀNG & KÈM SẢN PHẨM BỔ TRỢ
 # ---------------------------------------------------------
 st.markdown("---")
-st.markdown("### 📊 Kết quả Minh họa Dòng tiền")
+st.markdown("### 📊 Tóm tắt Quyền lợi Hợp đồng")
 
 df_proj = generate_ul_projection(
     prod_code,
@@ -452,10 +451,31 @@ df_proj = generate_ul_projection(
     sa_pa,
 )
 
-st.metric("Sản phẩm", prod_name)
-st.metric("STBH chính", fmt_vnd(sum_assured))
-st.metric("Phí đóng hàng năm", fmt_vnd(target_premium))
-st.metric("Tổng phí dự kiến", fmt_vnd(target_premium * prem_term))
+# Hiển thị thông tin tổng quan dạng lưới nhỏ gọn
+col_res1, col_res2 = st.columns(2)
+with col_res1:
+    st.markdown(f"**Sản phẩm:** `{prod_name}`")
+    st.markdown(f"**STBH chính:** `{fmt_vnd_short(sum_assured)} VNĐ`")
+with col_res2:
+    st.markdown(f"**Phí hàng năm:** `{fmt_vnd_short(target_premium)} VNĐ`")
+    st.markdown(
+        f"**Tổng phí ({prem_term} năm):**"
+        f" `{fmt_vnd_short(target_premium * prem_term)} VNĐ`"
+    )
+
+# Hiển thị bổ trợ đã chọn nếu có
+riders_summary = []
+if sa_cir1 > 0:
+    riders_summary.append(f"CIR1: {fmt_vnd_short(sa_cir1)}đ")
+if sa_cir2 > 0:
+    riders_summary.append(f"CIR2: {fmt_vnd_short(sa_cir2)}đ")
+if sa_pa > 0:
+    riders_summary.append(f"Tai nạn: {fmt_vnd_short(sa_pa)}đ")
+
+if riders_summary:
+    st.markdown(f"🛡️ **Sản phẩm bổ trợ:** {', '.join(riders_summary)}")
+else:
+    st.markdown("🛡️ **Sản phẩm bổ trợ:** Không có")
 
 st.markdown("---")
 
@@ -470,15 +490,11 @@ if not breakeven_df.empty:
     be_acc_val = fmt_vnd(first_be["Giá Trị Tài Khoản"])
 
     st.success(
-        f"💡 **Điểm nổi bật ({prod_name}):** Ở mức lãi suất 5%/năm, Giá trị tài"
-        f" khoản sẽ **vượt Tổng phí đóng** từ **Năm thứ {be_year}** (lúc"
-        f" **{be_age} tuổi**) với số tiền đạt **{be_acc_val}**."
+        f"💡 Ở lãi suất 5%/năm, Giá trị tài khoản vượt Tổng phí đóng từ **Năm"
+        f" thứ {be_year}** (lúc **{be_age} tuổi**) đạt **{be_acc_val}**."
     )
 else:
-    st.warning(
-        f"💡 **Lưu ý ({prod_name}):** Giá trị tài khoản chưa vượt Tổng phí đóng"
-        " trong khoảng thời gian minh họa."
-    )
+    st.warning("💡 Giá trị tài khoản chưa vượt Tổng phí đóng trong minh họa.")
 
 pdf_buffer = create_pdf_report(
     fullname,
