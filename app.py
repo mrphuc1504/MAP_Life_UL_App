@@ -25,12 +25,10 @@ hide_ui_style = """
     [data-testid="stDecoration"] {visibility: hidden !important;}
     [data-testid="stStatusWidget"] {visibility: hidden !important;}
     
-    /* Ẩn riêng 2 nút nổi góc dưới bên phải */
-    .viewerBadge_container__1QSob {display: none !important;}
-    iframe[src*="streamlit.app"] {display: none !important; width: 0px; height: 0px; pointer-events: none;}
-    
-    /* Chặn các thành phần widget góc phải dưới nhưng KHÔNG ảnh hưởng nút mở menu sidebar >> */
-    div[class*="viewerBadge"] {display: none !important;}
+    /* Ép ẩn hoàn toàn khung chứa 2 nút góc dưới bên phải mà vẫn giữ nguyên nút mở menu >> */
+    iframe {
+        display: none !important;
+    }
     </style>
 """
 st.markdown(hide_ui_style, unsafe_allow_html=True)
