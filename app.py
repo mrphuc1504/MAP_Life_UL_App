@@ -1,43 +1,35 @@
 from datetime import datetime
 import io
-import os
 import pandas as pd
-from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.pdfgen import canvas
 import streamlit as st
 
 # ---------------------------------------------------------
-# 1. CẤU HÌNH TRANG WEB
+# 1. CẤU HÌNH TRANG WEB & ẨN HOÀN TOÀN GIAO DIỆN THỪA
 # ---------------------------------------------------------
 st.set_page_config(
-    page_title="MAP Life UL Illustration Tool",
+    page_title="Tính nhanh UL MAPLife",
     page_icon="🛡️",
     layout="wide",
+    initial_sidebar_state="auto",
 )
 
-# CSS làm gọn giao diện tối ưu hoàn toàn cho mobile & desktop
-ui_style = """
+hide_ui_style = """
     <style>
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
+    header {visibility: hidden;}
     .stDeployButton {display:none;}
-    [data-testid="stToolbar"] {visibility: hidden !important;}
+    [data-testid="stToolbar"] {display: none !important; height: 0px !important; visibility: hidden !important;}
     [data-testid="stDecoration"] {visibility: hidden !important;}
-    
-    .card-container {
-        background-color: #f8f9fa;
-        border: 1px solid #e9ecef;
-        padding: 20px;
-        border-radius: 10px;
-        margin-bottom: 20px;
-    }
+    [data-testid="stStatusWidget"] {visibility: hidden !important;}
+    .viewerBadge_container__1QSob {display: none !important;}
+    iframe[src*="streamlit.app"] {display: none !important;}
+    button[kind="header"] {display: none !important;}
     </style>
 """
-st.markdown(ui_style, unsafe_allow_html=True)
+st.markdown(hide_ui_style, unsafe_allow_html=True)
 
 
 def fmt_vnd(amount):
@@ -73,104 +65,119 @@ def get_sam_multipliers(prod_code, age):
             return 5, 25
 
 
-st.title("🛡️ BẢNG MINH HỌA DÒNG TIỀN MAP LIFE UL")
+st.title("🛡️TÍNH NHANH UL")
 st.caption(
     "Công cụ hỗ trợ tư vấn & tính toán quyền lợi sản phẩm MAP Life Hạnh Phúc (UL2) & Bình An (UL3)"
 )
-st.markdown("---")
 
 # ---------------------------------------------------------
-# 2. KHU VỰC CẤU HÌNH TRỰC QUAN (ĐÃ LƯỢC BỚT Ô RƯỜM RÀ)
+# 2. THANH THÔNG TIN BÊN (SIDEBAR)
 # ---------------------------------------------------------
-st.subheader("📋 Cấu hình thông tin Hợp đồng & Khách hàng")
+st.sidebar.header("📋 THÔNG TIN ")
 
-with st.container():
-    st.markdown('<div class="card-container">', unsafe_allow_html=True)
+product_choice = st.sidebar.selectbox(
+    "Lựa chọn sản phẩm bảo hiểm:",
+    ["MAP Life Hạnh Phúc (UL2)", "MAP Life Bình An (UL3)"],
+    key="prod_choice",
+)
 
-    col_cfg1, col_cfg2 = st.columns(2)
+if "UL2" in product_choice:
+    prod_code = "UL2"
+    prod_name = "MAP Life Hạnh Phúc"
+    min_term, max_term = 4, 20
+    default_tp_m = 10
+    default_sa_m = 900
+    abs_min_tp = 10_000_000
+    abs_min_sa = 250_000_000
+else:
+    prod_code = "UL3"
+    prod_name = "MAP Life Bình An"
+    min_term, max_term = 3, 20
+    default_tp_m = 20
+    default_sa_m = 500
+    abs_min_tp = 9_091_000
+    abs_min_sa = 200_000_000
 
-    with col_cfg1:
-        product_choice = st.selectbox(
-            "Lựa chọn sản phẩm bảo hiểm:",
-            ["MAP Life Hạnh Phúc (UL2)", "MAP Life Bình An (UL3)"],
-            key="prod_choice",
-        )
+st.sidebar.markdown("---")
+st.sidebar.subheader("👤 Thông tin Khách hàng")
 
-        if "UL2" in product_choice:
-            prod_code = "UL2"
-            prod_name = "MAP Life Hạnh Phúc"
-            min_term, max_term = 4, 20
-            default_tp_m = 10
-            default_sa_m = 900
-            abs_min_tp = 10_000_000
-            abs_min_sa = 250_000_000
-        else:
-            prod_code = "UL3"
-            prod_name = "MAP Life Bình An"
-            min_term, max_term = 3, 20
-            default_tp_m = 20
-            default_sa_m = 500
-            abs_min_tp = 9_091_000
-            abs_min_sa = 200_000_000
+fullname = st.sidebar.text_input("Họ và tên NĐBH", " Lộc Đại Phu")
+gender = st.sidebar.radio("Giới tính", ["Nam", "Nữ"], horizontal=True)
 
-        fullname = st.text_input("Họ và tên NĐBH", "Nguyễn Văn Đạt")
-
-        # Thay vì 3 ô ngày/tháng/năm, gom gọn lại 1 ô Năm sinh duy nhất
-        current_year = datetime.now().year
-        birth_year = st.selectbox(
-            "Năm sinh Người được bảo hiểm:",
-            range(1950, current_year + 1),
-            index=36,  # Mặc định năm tương ứng ~1986 hoặc điều chỉnh
-            key="b_year",
-        )
-        entry_age = current_year - birth_year
-
-    with col_cfg2:
-        tp_in_millions = st.number_input(
-            "Phí bảo hiểm cơ bản hàng năm (Triệu VNĐ):",
-            min_value=0.0,
-            value=float(default_tp_m),
-            step=1.0,
-            format="%g",
-            key="tp_input",
-        )
-        target_premium = int(tp_in_millions * 1_000_000)
-
-        sam_min_mult, sam_max_mult = get_sam_multipliers(prod_code, entry_age)
-        dynamic_min_sa = max(abs_min_sa, target_premium * sam_min_mult)
-        dynamic_max_sa = target_premium * sam_max_mult
-
-        prem_term = st.slider(
-            "Thời hạn đóng phí dự kiến (năm):",
-            min_value=min_term,
-            max_value=max_term,
-            value=10,
-            key="term_slider",
-        )
-
-        sa_in_millions = st.number_input(
-            "Số Tiền Bảo Hiểm (STBH) (Triệu VNĐ):",
-            min_value=0.0,
-            value=float(default_sa_m),
-            step=10.0,
-            format="%g",
-            key="sa_input",
-        )
-        sum_assured = int(sa_in_millions * 1_000_000)
-
-    st.info(
-        f"💡 Tóm tắt cấu hình: Tuổi tham gia: **{entry_age} tuổi** | "
-        f"Phí đóng: **{fmt_vnd(target_premium)}/năm** | "
-        f"STBH: **{fmt_vnd(sum_assured)}**"
+col_d, col_m, col_y = st.sidebar.columns(3)
+with col_y:
+    birth_year = col_y.selectbox(
+        "Năm sinh", range(1950, 2027), index=40, key="b_year"
     )
+with col_m:
+    birth_month = col_m.selectbox(
+        "Tháng", range(1, 13), index=0, key="b_month"
+    )
+with col_d:
+    birth_day = col_d.selectbox("Ngày", range(1, 32), index=0, key="b_day")
 
-    if sum_assured < dynamic_min_sa or sum_assured > dynamic_max_sa:
-        st.warning(
-            f"⚠️ STBH đang nằm ngoài dải thẩm định khuyến nghị theo phí "
-            f"({fmt_vnd(dynamic_min_sa)} - {fmt_vnd(dynamic_max_sa)})"
-        )
+today = datetime.now()
+try:
+    dob = datetime(birth_year, birth_month, birth_day)
+    entry_age = (
+        today.year
+        - dob.year
+        - ((today.month, today.day) < (dob.month, dob.day))
+    )
+except ValueError:
+    entry_age = today.year - birth_year
 
-    st.markdown("</div>", unsafe_allow_html=True)
+st.sidebar.info(
+    f"💡 Ngày sinh: **{birth_day:02d}/{birth_month:02d}/{birth_year}** | Tuổi tham gia: **{entry_age} tuổi**"
+)
+
+st.sidebar.markdown("---")
+st.sidebar.subheader("💰 Thông tin Hợp đồng")
+
+tp_in_millions = st.sidebar.number_input(
+    "Phí bảo hiểm cơ bản hàng năm (Triệu VNĐ):",
+    min_value=0.0,
+    value=float(default_tp_m),
+    step=1.0,
+    format="%g",
+    key="tp_input",
+)
+target_premium = int(tp_in_millions * 1_000_000)
+st.sidebar.success(f"👉 **Phí đóng:** `{fmt_vnd(target_premium)}`")
+
+sam_min_mult, sam_max_mult = get_sam_multipliers(prod_code, entry_age)
+dynamic_min_sa = max(abs_min_sa, target_premium * sam_min_mult)
+dynamic_max_sa = target_premium * sam_max_mult
+
+prem_term = st.sidebar.slider(
+    "Thời hạn đóng phí dự kiến (năm):",
+    min_value=min_term,
+    max_value=max_term,
+    value=10,
+    key="term_slider",
+)
+
+sa_in_millions = st.sidebar.number_input(
+    "Số Tiền Bảo Hiểm (STBH) (Triệu VNĐ):",
+    min_value=0.0,
+    value=float(default_sa_m),
+    step=10.0,
+    format="%g",
+    key="sa_input",
+)
+sum_assured = int(sa_in_millions * 1_000_000)
+st.sidebar.success(f"👉 **STBH:** `{fmt_vnd(sum_assured)}`")
+
+st.sidebar.caption(
+    f"📌 *Hạn mức STBH động ({entry_age} tuổi, phí {fmt_vnd(target_premium)}):*\n"
+    f"- Tối thiểu: **{fmt_vnd(dynamic_min_sa)}**\n"
+    f"- Tối đa: **{fmt_vnd(dynamic_max_sa)}**"
+)
+
+if sum_assured < dynamic_min_sa or sum_assured > dynamic_max_sa:
+    st.sidebar.warning(
+        f"⚠️ STBH vượt ngoài dải thẩm định động theo phí ({fmt_vnd(dynamic_min_sa)} - {fmt_vnd(dynamic_max_sa)})"
+    )
 
 
 # ---------------------------------------------------------
@@ -253,125 +260,73 @@ def generate_ul_projection(
 
 
 # ---------------------------------------------------------
-# 4. HÀM TẠO FILE PDF (SỬ DỤNG FONT CALIBRI)
+# 4. HÀM TẠO FILE PDF (DÙNG TIẾNG VIỆT KHÔNG DẤU CHUẨN SẠCH ĐẸP)
 # ---------------------------------------------------------
 def create_pdf_report(
     fullname, prod_name, entry_age, sum_assured, target_premium, prem_term, df_p
 ):
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=A4,
-        rightMargin=30,
-        leftMargin=30,
-        topMargin=30,
-        bottomMargin=30,
-    )
-    story = []
+    c = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
 
-    try:
-        if os.path.exists("calibri.ttf") and os.path.exists("calibrib.ttf"):
-            pdfmetrics.registerFont(TTFont("Calibri", "calibri.ttf"))
-            pdfmetrics.registerFont(TTFont("Calibri-Bold", "calibrib.ttf"))
-            font_name = "Calibri"
-            font_bold = "Calibri-Bold"
-        else:
-            pdfmetrics.registerFont(TTFont("DejaVu", "DejaVuSans.ttf"))
-            pdfmetrics.registerFont(TTFont("DejaVu-Bold", "DejaVuSans-Bold.ttf"))
-            font_name = "DejaVu"
-            font_bold = "DejaVu-Bold"
-    except:
-        font_name = "Helvetica"
-        font_bold = "Helvetica-Bold"
-
-    styles = getSampleStyleSheet()
-    title_style = ParagraphStyle(
-        "TitleStyle",
-        parent=styles["Heading1"],
-        fontName=font_bold,
-        fontSize=14,
-        textColor=colors.HexColor("#004d99"),
-        spaceAfter=6,
-    )
-    normal_style = ParagraphStyle(
-        "NormalStyle",
-        parent=styles["Normal"],
-        fontName=font_name,
-        fontSize=9,
-        textColor=colors.HexColor("#333333"),
-    )
-    bold_style = ParagraphStyle(
-        "BoldStyle",
-        parent=styles["Normal"],
-        fontName=font_bold,
-        fontSize=9,
-        textColor=colors.HexColor("#000000"),
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(50, height - 40, "BANG MINH HOA QUYEN LOI BAO HIEM")
+    c.setFont("Helvetica-Bold", 12)
+    c.setFillColorRGB(0, 0.3, 0.6)
+    c.drawString(
+        50,
+        height - 60,
+        f"San pham: {prod_name.replace('Hạnh Phúc', 'Hanh Phuc').replace('Bình An', 'Binh An')}",
     )
 
-    story.append(Paragraph("BẢNG MINH HỌA QUYỀN LỢI BẢO HIỂM", title_style))
-    story.append(Paragraph(f"<b>Sản phẩm:</b> {prod_name}", normal_style))
-    story.append(
-        Paragraph(
-            f"<b>Khách hàng:</b> {fullname} | <b>Tuổi tham gia:</b> {entry_age}",
-            normal_style,
+    c.setFont("Helvetica", 10)
+    c.setFillColorRGB(0, 0, 0)
+    c.drawString(
+        50, height - 85, f"Khach hang: {fullname} | Tuoi tham gia: {entry_age}"
+    )
+    c.drawString(
+        50,
+        height - 100,
+        f"STBH: {fmt_vnd(sum_assured)} | Phi co ban: {fmt_vnd(target_premium)}/nam ({prem_term} nam)",
+    )
+
+    c.setFont("Helvetica-Bold", 9)
+    y_start = height - 130
+    c.drawString(
+        50,
+        y_start,
+        "Nam/Tuoi      Phi Dong      Tong Phi      Thuong      Tu Vong      Gia Tri TK      Hoan Lai",
+    )
+    c.line(50, y_start - 5, width - 50, y_start - 5)
+
+    c.setFont("Helvetica", 8)
+    y = y_start - 20
+
+    for index, row in df_p.iterrows():
+        if y < 50:
+            c.showPage()
+            c.setFont("Helvetica", 8)
+            y = height - 50
+
+        line_str = (
+            f"{row['Năm/Tuổi']:<12} "
+            f"{fmt_vnd_short(row['Phí Đóng Dự Kiến']):<13} "
+            f"{fmt_vnd_short(row['Tổng Phí Lũy Kế']):<13} "
+            f"{fmt_vnd_short(row['Thưởng Gắn Bó']):<11} "
+            f"{fmt_vnd_short(row['Quyền Lợi Tử Vong']):<12} "
+            f"{fmt_vnd_short(row['Giá Trị Tài Khoản']):<15} "
+            f"{fmt_vnd_short(row['Giá Trị Hoàn Lại'])}"
         )
-    )
-    story.append(
-        Paragraph(
-            f"<b>STBH:</b> {fmt_vnd(sum_assured)} | <b>Phí cơ bản:</b> {fmt_vnd(target_premium)}/năm ({prem_term} năm)",
-            normal_style,
-        )
-    )
-    story.append(Spacer(1, 10))
+        c.drawString(50, y, line_str)
+        y -= 15
 
-    table_data = [[
-        Paragraph("<b>Năm/Tuổi</b>", bold_style),
-        Paragraph("<b>Phí Đóng</b>", bold_style),
-        Paragraph("<b>Tổng Phí</b>", bold_style),
-        Paragraph("<b>Thưởng</b>", bold_style),
-        Paragraph("<b>Tử Vong</b>", bold_style),
-        Paragraph("<b>Giá Trị TK</b>", bold_style),
-        Paragraph("<b>Hoàn Lại</b>", bold_style),
-    ]]
-
-    for _, row in df_p.iterrows():
-        table_data.append([
-            Paragraph(str(row["Năm/Tuổi"]), normal_style),
-            Paragraph(fmt_vnd_short(row["Phí Đóng Dự Kiến"]), normal_style),
-            Paragraph(fmt_vnd_short(row["Tổng Phí Lũy Kế"]), normal_style),
-            Paragraph(fmt_vnd_short(row["Thưởng Gắn Bó"]), normal_style),
-            Paragraph(fmt_vnd_short(row["Quyền Lợi Tử Vong"]), normal_style),
-            Paragraph(fmt_vnd_short(row["Giá Trị Tài Khoản"]), normal_style),
-            Paragraph(fmt_vnd_short(row["Giá Trị Hoàn Lại"]), normal_style),
-        ])
-
-    col_widths = [55, 75, 75, 65, 80, 85, 85]
-    pdf_table = Table(table_data, colWidths=col_widths, repeatRows=1)
-    pdf_table.setStyle(
-        TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#e6f2ff")),
-            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("BOTTOMPADDING", (0, 0), (-1, 0), 6),
-            ("TOPPADDING", (0, 0), (-1, 0), 6),
-            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#cccccc")),
-            (
-                "ROWBACKGROUNDS",
-                (0, 1),
-                (-1, -1),
-                [colors.white, colors.HexColor("#f9f9f9")],
-            ),
-        ])
-    )
-
-    story.append(pdf_table)
-    doc.build(story)
+    c.save()
     buffer.seek(0)
     return buffer
 
 
 # ---------------------------------------------------------
-# 5. HIỂN THỊ KẾT QUẢ & DÒNG TIỀN
+# 5. HIỂN THỊ GIAO DIỆN WEB
 # ---------------------------------------------------------
 df_proj = generate_ul_projection(
     prod_code, entry_age, target_premium, prem_term, sum_assured
@@ -396,7 +351,7 @@ if not breakeven_df.empty:
     be_acc_val = fmt_vnd(first_be["Giá Trị Tài Khoản"])
 
     st.success(
-        f"💡 **Điểm nổi bật ({prod_name}):** Ở mức lãi suất giả định 5%/năm, Giá trị tài khoản hợp đồng sẽ **vượt Tổng phí đóng** từ **Năm hợp đồng thứ {be_year}** (lúc khách hàng **{be_age} tuổi**) với số tiền đạt **{be_acc_val}**."
+        f"💡 **({prod_name}):** Ở mức lãi suất giả định 5%/năm, Giá trị tài khoản hợp đồng sẽ **vượt Tổng phí đóng** từ **Năm hợp đồng thứ {be_year}** (lúc khách hàng **{be_age} tuổi**) với số tiền đạt **{be_acc_val}**."
     )
 else:
     st.warning(
@@ -417,7 +372,7 @@ with col_btn:
         df_proj,
     )
     st.download_button(
-        label="📥 Tải Bảng Minh Họa (PDF)",
+        label="📥 Tải Minh Họa Nháp (PDF)",
         data=pdf_buffer,
         file_name=f"Minh_Hoa_Dich_Vu_{prod_code}_{fullname.replace(' ', '_')}.pdf",
         mime="application/pdf",
@@ -437,8 +392,7 @@ if not df_proj.empty:
     ]
 
     for col in money_cols:
-        if col in df_display.columns:
-            df_display[col] = df_display[col].apply(fmt_vnd)
+        df_display[col] = df_display[col].apply(fmt_vnd)
 
     st.dataframe(
         df_display[[
@@ -454,4 +408,4 @@ if not df_proj.empty:
         height=550,
     )
 else:
-    st.warning("⚠️ Không có dữ liệu minh họa. Vui lòng kiểm tra lại Năm sinh.")
+    st.warning("⚠️ Không có dữ liệu minh họa. Vui lòng kiểm tra lại Ngày sinh.")
