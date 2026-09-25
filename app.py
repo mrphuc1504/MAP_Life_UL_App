@@ -6,7 +6,7 @@ from reportlab.pdfgen import canvas
 import streamlit as st
 
 # ---------------------------------------------------------
-# 1. CẤU HÌNH TRANG WEB & CSS XỬ LÝ GIAO DIỆN DI ĐỘNG
+# 1. CẤU HÌNH TRANG WEB & CSS CHUẨN XÁC (GIỮ NGUYÊN NÚT MỞ MENU)
 # ---------------------------------------------------------
 st.set_page_config(
     page_title="MAP Life UL Illustration Tool",
@@ -25,11 +25,8 @@ hide_ui_style = """
     [data-testid="stDecoration"] {visibility: hidden !important;}
     [data-testid="stStatusWidget"] {visibility: hidden !important;}
     
-    /* Ẩn hoàn toàn khung chứa 2 nút nổi góc dưới bên phải nhưng GIỮ NGUYÊN nút >> */
-    div.stApp > div:has(iframe) {
-        display: none !important;
-    }
-    iframe {
+    /* Chỉ ẩn đúng huy hiệu góc phải, KHÔNG làm ảnh hưởng đến nút mở sidebar >> */
+    div[class*="viewerBadge"] {
         display: none !important;
     }
     </style>
@@ -78,7 +75,7 @@ st.caption(
 # ---------------------------------------------------------
 # 2. THANH THÔNG TIN BÊN (SIDEBAR)
 # ---------------------------------------------------------
-st.sidebar.header("📋 THÔNG TIN SẢN PHẨM")
+st.sidebar.header("📋 THÔNG TIN CẤU HÌNH")
 
 product_choice = st.sidebar.selectbox(
     "Lựa chọn sản phẩm bảo hiểm:",
