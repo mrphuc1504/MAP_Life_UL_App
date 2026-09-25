@@ -100,7 +100,7 @@ else:
 
 st.markdown("---")
 st.markdown("### 👤 2. Thông tin KH")
-fullname = st.text_input("Họ và tên NĐBH", "Nguyễn Văn Đạt")
+fullname = st.text_input("Họ và tên NĐBH", "Lộc Đại Phu")
 gender = st.radio("Giới tính", ["Nam", "Nữ"], horizontal=True)
 
 col_d, col_m, col_y = st.columns(3)
