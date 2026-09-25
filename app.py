@@ -4,6 +4,17 @@ import pandas as pd
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 import streamlit as st
+
+# ---------------------------------------------------------
+# 1. CẤU HÌNH TRANG WEB & ẨN HOÀN TOÀN CÁC NÚT NỔI HỆ THỐNG
+# ---------------------------------------------------------
+st.set_page_config(
+    page_title="MAP Life UL Illustration Tool",
+    page_icon="🛡️",
+    layout="wide",
+    initial_sidebar_state="auto",
+)
+
 hide_ui_style = """
     <style>
     #MainMenu {visibility: hidden;}
@@ -13,34 +24,12 @@ hide_ui_style = """
     [data-testid="stToolbar"] {visibility: hidden !important;}
     [data-testid="stDecoration"] {visibility: hidden !important;}
     [data-testid="stStatusWidget"] {visibility: hidden !important;}
-    div[data-testid="stAppViewContainer"] > div:nth-child(2) {visibility: hidden !important;}
     .viewerBadge_container__1QSob {display: none !important;}
     iframe[src*="streamlit.app"] {display: none !important;}
     button[kind="header"] {display: none !important;}
     </style>
 """
 st.markdown(hide_ui_style, unsafe_allow_html=True)
-# ---------------------------------------------------------
-# 1. CẤU HÌNH TRANG WEB (ÉP HIỂN THỊ THANH MENU BÊN HÔNG)
-# ---------------------------------------------------------
-st.set_page_config(
-    page_title="MAP Life UL Illustration Tool",
-    page_icon="🛡️",
-    layout="wide",
-    initial_sidebar_state="expanded",  # Ép luôn mở rộng sidebar
-)
-
-# CSS ép hiển thị nút menu trên điện thoại và làm gọn giao diện
-st.markdown(
-    """
-    <style>
-    [data-testid="collapsedControl"] {
-        display: block !important;
-    }
-    </style>
-""",
-    unsafe_allow_html=True,
-)
 
 
 def fmt_vnd(amount):
@@ -76,14 +65,15 @@ def get_sam_multipliers(prod_code, age):
             return 5, 25
 
 
-st.title("🛡️ BẢNG MINH HỌA DÒNG TIỀN MAP LIFE UL")
+st.title("🛡️ BẢNG MINH HỌA BHNT UL MAPLIFE")
 st.caption(
     "Công cụ hỗ trợ tư vấn & tính toán quyền lợi sản phẩm MAP Life Hạnh Phúc (UL2) & Bình An (UL3)"
 )
+
 # ---------------------------------------------------------
 # 2. THANH THÔNG TIN BÊN (SIDEBAR)
 # ---------------------------------------------------------
-st.sidebar.header("📋 THÔNG TIN CƠ BẢN")
+st.sidebar.header("📋 THÔNG TIN SẢN PHẨM")
 
 product_choice = st.sidebar.selectbox(
     "Lựa chọn sản phẩm bảo hiểm:",
