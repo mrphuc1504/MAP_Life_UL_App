@@ -84,11 +84,6 @@ st.markdown("---")
 # ---------------------------------------------------------
 st.subheader("📋 Thông tin Sản phẩm & Khách hàng")
 
-with st.container():
-    st.markdown('<div class="card-container">', unsafe_allow_html=True)
-
-    col_cfg1, col_cfg2 = st.columns(2)
-
     with col_cfg1:
         product_choice = st.selectbox(
             "Lựa chọn sản phẩm bảo hiểm:",
