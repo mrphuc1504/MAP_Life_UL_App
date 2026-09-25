@@ -13,18 +13,17 @@ import streamlit as st
 # 1. CẤU HÌNH TRANG WEB
 # ---------------------------------------------------------
 st.set_page_config(
-    page_title="Tính nhanh MAP Life UL",
+    page_title="Tính nhanh UL MAP Life ",
     page_icon="🛡️",
     layout="wide",
-    initial_sidebar_state="auto",  # Giữ nguyên tính năng ẩn/hiện linh hoạt của Streamlit
+    initial_sidebar_state="auto",
 )
 
-# CSS làm gọn giao diện và tối ưu hiển thị trên di động
+# CSS làm gọn giao diện nhưng VẪN GIỮ lại header để hiện nút mở menu trên di động
 ui_style = """
     <style>
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    header {visibility: hidden;}
     .stDeployButton {display:none;}
     [data-testid="stToolbar"] {visibility: hidden !important;}
     [data-testid="stDecoration"] {visibility: hidden !important;}
@@ -78,16 +77,15 @@ def get_sam_multipliers(prod_code, age):
             return 5, 25
 
 
-st.title("🛡️ BẢNG MINH HỌA DÒNG TIỀN MAP LIFE UL")
+st.title("🛡️ BẢNG MINH HỌA DÒNG TIỀN UL")
 st.caption(
     "Công cụ hỗ trợ tư vấn & tính toán quyền lợi sản phẩm MAP Life Hạnh Phúc (UL2) & Bình An (UL3)"
 )
 
-# Thêm thông báo nhắc nhở nhẹ trên mobile giúp người dùng dễ nhận biết góc mở tab
 st.markdown(
     """
     <div class="mobile-notice">
-        📱 <b>Lưu ý trên điện thoại:</b> Nếu chưa thấy bảng nhập thông tin, vui lòng bấm vào <b>biểu tượng mũi tên nhỏ/menu (>)</b> ở góc trên bên trái màn hình để mở bảng cấu hình nhé!
+        📱 <b>Lưu ý trên điện thoại:</b> Bấm vào <b>biểu tượng mũi tên nhỏ (>)</b> ở góc trên bên trái màn hình để mở bảng cấu hình thông tin nhé!
     </div>
 """,
     unsafe_allow_html=True,
@@ -96,7 +94,7 @@ st.markdown(
 # ---------------------------------------------------------
 # 2. THANH THÔNG TIN BÊN (SIDEBAR)
 # ---------------------------------------------------------
-st.sidebar.header("📋 THÔNG TIN TÍNH TOÁN")
+st.sidebar.header("📋 THÔNG TIN ")
 
 product_choice = st.sidebar.selectbox(
     "Lựa chọn sản phẩm bảo hiểm:",
@@ -420,7 +418,7 @@ if not breakeven_df.empty:
     be_acc_val = fmt_vnd(first_be["Giá Trị Tài Khoản"])
 
     st.success(
-        f"💡 **({prod_name}):** Ở mức lãi suất giả định 5%/năm, Giá trị tài khoản hợp đồng sẽ **vượt Tổng phí đóng** từ **Năm hợp đồng thứ {be_year}** (lúc khách hàng **{be_age} tuổi**) với số tiền đạt **{be_acc_val}**."
+        f"💡 **Điểm nổi bật ({prod_name}):** Ở mức lãi suất giả định 5%/năm, Giá trị tài khoản hợp đồng sẽ **vượt Tổng phí đóng** từ **Năm hợp đồng thứ {be_year}** (lúc khách hàng **{be_age} tuổi**) với số tiền đạt **{be_acc_val}**."
     )
 else:
     st.warning(
@@ -441,7 +439,7 @@ with col_btn:
         df_proj,
     )
     st.download_button(
-        label="📥 Tải BMH nháp (PDF)",
+        label="📥 Tải Minh Họa NHÁP (PDF)",
         data=pdf_buffer,
         file_name=f"Minh_Hoa_Dich_Vu_{prod_code}_{fullname.replace(' ', '_')}.pdf",
         mime="application/pdf",
@@ -460,7 +458,6 @@ if not df_proj.empty:
         "Giá Trị Hoàn Lại",
     ]
 
-    # Kiểm tra an toàn cột tồn tại trước khi apply định dạng tiền tệ để tránh KeyError
     for col in money_cols:
         if col in df_display.columns:
             df_display[col] = df_display[col].apply(fmt_vnd)
