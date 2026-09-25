@@ -9,7 +9,7 @@ import streamlit as st
 # 1. CẤU HÌNH TRANG WEB & ẨN GIAO DIỆN HỆ THỐNG
 # ---------------------------------------------------------
 st.set_page_config(
-    page_title="TÍNH NHANH MAPLIFE",
+    page_title="Tính nhanh UL",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="auto",
@@ -65,7 +65,7 @@ def get_sam_multipliers(prod_code, age):
             return 5, 25
 
 
-st.title("🛡️MINH HỌA DÒNG TIỀN UL")
+st.title("🛡️ MINH HỌA UL")
 st.caption(
     "Công cụ hỗ trợ tư vấn & tính toán quyền lợi sản phẩm MAP Life Hạnh Phúc (UL2) & Bình An (UL3) kèm Sản phẩm bổ trợ"
 )
@@ -73,7 +73,7 @@ st.caption(
 # ---------------------------------------------------------
 # 2. THANH THÔNG TIN BÊN (SIDEBAR)
 # ---------------------------------------------------------
-st.sidebar.header("📋 THÔNG TIN")
+st.sidebar.header("📋 THÔNG TIN ")
 
 product_choice = st.sidebar.selectbox(
     "Lựa chọn sản phẩm bảo hiểm:",
@@ -236,7 +236,7 @@ if use_cir2:
     )
     sa_cir2 = int(sa_cir2_m * 1_000_000)
 
-use_pa = st.sidebar.checkbox("Bảo hiểm Tai nạn cá nhân (PDD1)", value=False)
+use_pa = st.sidebar.checkbox("Bảo hiểm hỗ trọ TTVV do Tai Nạn (PDD1)", value=False)
 sa_pa = 0
 if use_pa:
     sa_pa_m = st.sidebar.number_input(
@@ -251,7 +251,7 @@ if use_pa:
 
 
 # ---------------------------------------------------------
-# 3. ENGINE TÍNH TOÁN DÒNG TIỀN (CỘNG GỘP PHÍ BỔ TRỢ VÀO TỔNG PHÍ ĐÓNG)
+# 3. ENGINE TÍNH TOÁN DÒNG TIỀN (CHUẨN LOGIC TỪNG SẢN PHẨM)
 # ---------------------------------------------------------
 def generate_ul_projection(
     prod_code,
@@ -270,18 +270,17 @@ def generate_ul_projection(
     init_fee_rate = {1: 0.50, 2: 0.30, 3: 0.20, 4: 0.20, 5: 0.20}
 
     sa_to_tp_ratio = sa / tp if tp > 0 else 0
-
-    if prod_code == "UL2":
-        special_bonus_rate = min(1.0, max(0.25, sa_to_tp_ratio / 60.0))
-    else:
-        special_bonus_rate = min(0.5, max(0.15, sa_to_tp_ratio / 80.0))
+    special_bonus_rate = (
+        min(1.0, max(0.25, sa_to_tp_ratio / 60.0))
+        if prod_code == "UL2"
+        else 0.0
+    )
 
     max_years = max(1, 100 - entry_age)
 
     for pol_year in range(1, max_years + 1):
         current_age = entry_age + pol_year - 1
 
-        # Tính phí bảo hiểm sản phẩm bổ trợ hằng năm
         rider_prem_cir1 = (
             sa_cir1 * (0.0008 + current_age * 0.00005) if sa_cir1 > 0 else 0
         )
@@ -297,15 +296,11 @@ def generate_ul_projection(
         )
 
         yearly_prem_main = tp if pol_year <= prem_term else 0
-        yearly_prem_total = (
-            yearly_prem_main + annual_rider_prem
-        )  # Tổng phí đóng thực tế (Chính + Bổ trợ)
+        yearly_prem_total = yearly_prem_main + annual_rider_prem
         accumulated_prem += yearly_prem_total
 
         fee_rate = init_fee_rate.get(pol_year, 0.02)
-        invest_prem = (
-            yearly_prem_main * (1 - fee_rate)
-        )  # Phí đầu tư lấy từ phí cơ bản
+        invest_prem = yearly_prem_main * (1 - fee_rate)
 
         bonus = 0
         if prod_code == "UL2":
@@ -319,14 +314,10 @@ def generate_ul_projection(
             if pol_year == 10:
                 bonus += tp * special_bonus_rate
 
-        else:  # UL3
+        else:  # UL3 - Chỉ có thưởng định kỳ mỗi 3 năm, KHÔNG có thưởng đặc biệt năm 10
             if pol_year % 3 == 0:
                 bonus += tp * 0.04
 
-            if pol_year == 10:
-                bonus += tp * special_bonus_rate
-
-        # Khấu trừ chi phí rủi ro chính (phí bổ trợ đã được đóng trực tiếp qua annual_rider_prem)
         coi_fee_main = sa * (0.0015 + (current_age * 0.0001))
 
         account_value = (
@@ -357,7 +348,7 @@ def generate_ul_projection(
 
 
 # ---------------------------------------------------------
-# 4. HÀM TẠO FILE PDF (HIỂN THỊ ĐẦY ĐỦ TỔNG PHÍ ĐÓNG)
+# 4. HÀM TẠO FILE PDF
 # ---------------------------------------------------------
 def create_pdf_report(
     fullname,
@@ -457,7 +448,6 @@ df_proj = generate_ul_projection(
     sa_pa,
 )
 
-# Tính tổng phí năm đầu (Chính + Bổ trợ) để hiển thị metric
 first_year_rider_prem = (
     (sa_cir1 * (0.0008 + entry_age * 0.00005) if sa_cir1 > 0 else 0)
     + (sa_cir2 * (0.0012 + entry_age * 0.00006) if sa_cir2 > 0 else 0)
@@ -499,7 +489,7 @@ else:
 
 col_title, col_btn = st.columns([3, 1])
 with col_title:
-    st.subheader("📋 Dòng Tiền Chi Tiết (Kèm Sản Phẩm Bổ Trợ)")
+    st.subheader("📋Dòng Tiền Chi Tiết (Kèm Sản Phẩm Bổ Trợ)")
 with col_btn:
     pdf_buffer = create_pdf_report(
         fullname,
