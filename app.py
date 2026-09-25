@@ -69,6 +69,10 @@ def fmt_vnd_short(amount):
     return f"{int(amount):,}".replace(",", ".")
 
 
+def fmt_vnd_pdf(amount):
+    return f"{int(amount):,}".replace(",", ".") + " VND"
+
+
 def remove_accents(text):
     if not text:
         return ""
@@ -135,7 +139,6 @@ st.markdown("### 👤 2. Thông tin KH")
 fullname = st.text_input("Họ và tên NĐBH", "Lộc Đại Phu")
 gender = st.radio("Giới tính", ["Nam", "Nữ"], horizontal=True)
 
-# Gộp Ngày, Tháng, Năm sinh vào chung 1 hàng ngang, tối ưu chống tràn
 st.markdown("🗓️ **Ngày tháng năm sinh:**")
 col_d, col_m, col_y = st.columns(3)
 with col_d:
@@ -413,7 +416,7 @@ def get_rider_fee_year1(age, gender, sa_cir1, sa_cir2, sa_pa):
 
 
 # ---------------------------------------------------------
-# 4. HÀM TẠO FILE PDF (CÓ PHÂN BIỆT GIỚI TÍNH & KHÔNG DẤU)
+# 4. HÀM TẠO FILE PDF (HOÀN TOÀN KHÔNG DẤU, CHUẨN FONT PDF)
 # ---------------------------------------------------------
 def create_pdf_report(
     fullname,
@@ -469,22 +472,22 @@ def create_pdf_report(
     info_html = f"""
     <b>San pham:</b> {safe_prod}<br/>
     <b>Khach hang:</b> {safe_name} | <b>Gioi tinh:</b> {safe_gender} | <b>Tuoi:</b> {entry_age}<br/>
-    <b>STBH chinh:</b> {fmt_vnd(sum_assured)} | <b>Phi co ban:</b> {fmt_vnd(target_premium)}/nam ({prem_term} nam)
+    <b>STBH chinh:</b> {fmt_vnd_pdf(sum_assured)} | <b>Phi co ban:</b> {fmt_vnd_pdf(target_premium)}/nam ({prem_term} nam)
     """
 
     f1, f2, f3 = get_rider_fee_year1(entry_age, gender, sa_cir1, sa_cir2, sa_pa)
     rider_parts = []
     if sa_cir1 > 0:
         rider_parts.append(
-            f"CIR1 ({fmt_vnd(sa_cir1)} - Phi nam 1: {fmt_vnd_short(f1)} VND)"
+            f"CIR1 ({fmt_vnd_pdf(sa_cir1)} - Phi nam 1: {fmt_vnd_short(f1)} VND)"
         )
     if sa_cir2 > 0:
         rider_parts.append(
-            f"CIR2 ({fmt_vnd(sa_cir2)} - Phi nam 1: {fmt_vnd_short(f2)} VND)"
+            f"CIR2 ({fmt_vnd_pdf(sa_cir2)} - Phi nam 1: {fmt_vnd_short(f2)} VND)"
         )
     if sa_pa > 0:
         rider_parts.append(
-            f"Tai nan ({fmt_vnd(sa_pa)} - Phi nam 1: {fmt_vnd_short(f3)} VND)"
+            f"Tai nan ({fmt_vnd_pdf(sa_pa)} - Phi nam 1: {fmt_vnd_short(f3)} VND)"
         )
 
     rider_str = (
