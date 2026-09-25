@@ -34,6 +34,28 @@ mobile_css = """
     .stNumberInput, .stSelectbox, .stRadio, .stSlider {
         margin-bottom: 8px;
     }
+
+    /* Ép cụm Ngày/Tháng/Năm nằm gọn trên 1 hàng, chia đều 33% và KHÔNG bị tràn màn hình */
+    [data-testid="stHorizontalBlock"] {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        gap: 4px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+    [data-testid="stHorizontalBlock"] > [data-testid="column"] {
+        flex: 1 1 33% !important;
+        min-width: 0px !important;
+        max-width: 33% !important;
+        overflow: hidden !important;
+    }
+    /* Thu nhỏ chữ và padding của selectbox ngày sinh cho vừa khít mobile */
+    [data-testid="stHorizontalBlock"] div[data-baseweb="select"] > div {
+        padding-left: 2px !important;
+        padding-right: 2px !important;
+        font-size: 13px !important;
+    }
     </style>
 """
 st.markdown(mobile_css, unsafe_allow_html=True)
@@ -79,7 +101,7 @@ def get_sam_multipliers(prod_code, age):
             return 5, 25
 
 
-st.title("🛡️ Mobile UL")
+st.title("🛡️ Tính nhanh UL")
 st.caption("Công cụ minh họa dòng tiền & tư vấn bảo hiểm tối ưu trên di động")
 
 # ---------------------------------------------------------
@@ -113,13 +135,13 @@ st.markdown("### 👤 2. Thông tin KH")
 fullname = st.text_input("Họ và tên NĐBH", "Lộc Đại Phu")
 gender = st.radio("Giới tính", ["Nam", "Nữ"], horizontal=True)
 
-# Gộp Ngày, Tháng, Năm sinh vào chung 1 hàng ngang
+# Gộp Ngày, Tháng, Năm sinh vào chung 1 hàng ngang, tối ưu chống tràn
 st.markdown("🗓️ **Ngày tháng năm sinh:**")
 col_d, col_m, col_y = st.columns(3)
 with col_d:
-    birth_day = col_d.selectbox("Ngày", range(1, 32), index=0, key="b_day")
+    birth_day = col_d.selectbox("Ng", range(1, 32), index=0, key="b_day")
 with col_m:
-    birth_month = col_m.selectbox("Tháng", range(1, 13), index=0, key="b_month")
+    birth_month = col_m.selectbox("Th", range(1, 13), index=0, key="b_month")
 with col_y:
     birth_year = col_y.selectbox(
         "Năm", range(1950, 2027), index=40, key="b_year"
