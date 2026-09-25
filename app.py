@@ -13,13 +13,12 @@ import streamlit as st
 # 1. CẤU HÌNH TRANG WEB
 # ---------------------------------------------------------
 st.set_page_config(
-    page_title="Tính nhanh UL MAP Life ",
+    page_title="Tính nhanh MAP Life UL",
     page_icon="🛡️",
     layout="wide",
-    initial_sidebar_state="auto",
 )
 
-# CSS làm gọn giao diện nhưng VẪN GIỮ lại header để hiện nút mở menu trên di động
+# CSS làm gọn giao diện tối ưu hoàn toàn cho mobile & desktop
 ui_style = """
     <style>
     #MainMenu {visibility: hidden;}
@@ -28,16 +27,12 @@ ui_style = """
     [data-testid="stToolbar"] {visibility: hidden !important;}
     [data-testid="stDecoration"] {visibility: hidden !important;}
     
-    /* Gợi ý cho người dùng di động chú ý nút mở menu bên góc trái */
-    @media (max-width: 768px) {
-        .mobile-notice {
-            background-color: #e6f4ea;
-            border-left: 4px solid #34a853;
-            padding: 10px;
-            margin-bottom: 15px;
-            font-size: 14px;
-            border-radius: 4px;
-        }
+    .card-container {
+        background-color: #f8f9fa;
+        border: 1px solid #e9ecef;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
     }
     </style>
 """
@@ -77,128 +72,117 @@ def get_sam_multipliers(prod_code, age):
             return 5, 25
 
 
-st.title("🛡️ BẢNG MINH HỌA DÒNG TIỀN UL")
+st.title("🛡️ BẢNG MINH HỌA DÒNG TIỀN ")
 st.caption(
     "Công cụ hỗ trợ tư vấn & tính toán quyền lợi sản phẩm MAP Life Hạnh Phúc (UL2) & Bình An (UL3)"
 )
-
-st.markdown(
-    """
-    <div class="mobile-notice">
-        📱 <b>Lưu ý trên điện thoại:</b> Bấm vào <b>biểu tượng mũi tên nhỏ (>)</b> ở góc trên bên trái màn hình để mở bảng cấu hình thông tin nhé!
-    </div>
-""",
-    unsafe_allow_html=True,
-)
+st.markdown("---")
 
 # ---------------------------------------------------------
-# 2. THANH THÔNG TIN BÊN (SIDEBAR)
+# 2. KHU VỰC CẤU HÌNH TRỰC QUAN (HIỂN THỊ NGAY MÀN HÌNH CHÍNH)
 # ---------------------------------------------------------
-st.sidebar.header("📋 THÔNG TIN ")
+st.subheader("📋 Cấu hình thông tin Hợp đồng & Khách hàng")
 
-product_choice = st.sidebar.selectbox(
-    "Lựa chọn sản phẩm bảo hiểm:",
-    ["MAP Life Hạnh Phúc (UL2)", "MAP Life Bình An (UL3)"],
-    key="prod_choice",
-)
+with st.container():
+    st.markdown('<div class="card-container">', unsafe_allow_html=True)
 
-if "UL2" in product_choice:
-    prod_code = "UL2"
-    prod_name = "MAP Life Hạnh Phúc"
-    min_term, max_term = 4, 20
-    default_tp_m = 10
-    default_sa_m = 900
-    abs_min_tp = 10_000_000
-    abs_min_sa = 250_000_000
-else:
-    prod_code = "UL3"
-    prod_name = "MAP Life Bình An"
-    min_term, max_term = 3, 20
-    default_tp_m = 20
-    default_sa_m = 500
-    abs_min_tp = 9_091_000
-    abs_min_sa = 200_000_000
+    col_cfg1, col_cfg2 = st.columns(2)
 
-st.sidebar.markdown("---")
-st.sidebar.subheader("👤 Thông tin Khách hàng")
+    with col_cfg1:
+        product_choice = st.selectbox(
+            "Lựa chọn sản phẩm bảo hiểm:",
+            ["MAP Life Hạnh Phúc (UL2)", "MAP Life Bình An (UL3)"],
+            key="prod_choice",
+        )
 
-fullname = st.sidebar.text_input("Họ và tên NĐBH", "Nguyễn Văn A")
-gender = st.sidebar.radio("Giới tính", ["Nam", "Nữ"], horizontal=True)
+        if "UL2" in product_choice:
+            prod_code = "UL2"
+            prod_name = "MAP Life Hạnh Phúc"
+            min_term, max_term = 4, 20
+            default_tp_m = 10
+            default_sa_m = 900
+            abs_min_tp = 10_000_000
+            abs_min_sa = 250_000_000
+        else:
+            prod_code = "UL3"
+            prod_name = "MAP Life Bình An"
+            min_term, max_term = 3, 20
+            default_tp_m = 20
+            default_sa_m = 500
+            abs_min_tp = 9_091_000
+            abs_min_sa = 200_000_000
 
-col_d, col_m, col_y = st.sidebar.columns(3)
-with col_y:
-    birth_year = col_y.selectbox(
-        "Năm sinh", range(1950, 2027), index=40, key="b_year"
+        fullname = st.text_input("Họ và tên NĐBH", "Nguyễn Văn A")
+
+        # Chọn ngày tháng năm sinh gọn gàng
+        st.markdown("**Ngày sinh Người được bảo hiểm:**")
+        col_d, col_m, col_y = st.columns(3)
+        with col_y:
+            birth_year = st.selectbox(
+                "Năm", range(1950, 2027), index=40, key="b_year"
+            )
+        with col_m:
+            birth_month = st.selectbox("Tháng", range(1, 13), index=0, key="b_month")
+        with col_d:
+            birth_day = st.selectbox("Ngày", range(1, 32), index=0, key="b_day")
+
+        today = datetime.now()
+        try:
+            dob = datetime(birth_year, birth_month, birth_day)
+            entry_age = (
+                today.year
+                - dob.year
+                - ((today.month, today.day) < (dob.month, dob.day))
+            )
+        except ValueError:
+            entry_age = today.year - birth_year
+
+    with col_cfg2:
+        tp_in_millions = st.number_input(
+            "Phí bảo hiểm cơ bản hàng năm (Triệu VNĐ):",
+            min_value=0.0,
+            value=float(default_tp_m),
+            step=1.0,
+            format="%g",
+            key="tp_input",
+        )
+        target_premium = int(tp_in_millions * 1_000_000)
+
+        sam_min_mult, sam_max_mult = get_sam_multipliers(prod_code, entry_age)
+        dynamic_min_sa = max(abs_min_sa, target_premium * sam_min_mult)
+        dynamic_max_sa = target_premium * sam_max_mult
+
+        prem_term = st.slider(
+            "Thời hạn đóng phí dự kiến (năm):",
+            min_value=min_term,
+            max_value=max_term,
+            value=10,
+            key="term_slider",
+        )
+
+        sa_in_millions = st.number_input(
+            "Số Tiền Bảo Hiểm (STBH) (Triệu VNĐ):",
+            min_value=0.0,
+            value=float(default_sa_m),
+            step=10.0,
+            format="%g",
+            key="sa_input",
+        )
+        sum_assured = int(sa_in_millions * 1_000_000)
+
+    st.info(
+        f"💡 Tóm tắt cấu hình: Tuổi tham gia: **{entry_age} tuổi** | "
+        f"Phí đóng: **{fmt_vnd(target_premium)}/năm** | "
+        f"STBH: **{fmt_vnd(sum_assured)}**"
     )
-with col_m:
-    birth_month = col_m.selectbox(
-        "Tháng", range(1, 13), index=0, key="b_month"
-    )
-with col_d:
-    birth_day = col_d.selectbox("Ngày", range(1, 32), index=0, key="b_day")
 
-today = datetime.now()
-try:
-    dob = datetime(birth_year, birth_month, birth_day)
-    entry_age = (
-        today.year
-        - dob.year
-        - ((today.month, today.day) < (dob.month, dob.day))
-    )
-except ValueError:
-    entry_age = today.year - birth_year
+    if sum_assured < dynamic_min_sa or sum_assured > dynamic_max_sa:
+        st.warning(
+            f"⚠️ STBH đang nằm ngoài dải thẩm định khuyến nghị theo phí "
+            f"({fmt_vnd(dynamic_min_sa)} - {fmt_vnd(dynamic_max_sa)})"
+        )
 
-st.sidebar.info(
-    f"💡 Ngày sinh: **{birth_day:02d}/{birth_month:02d}/{birth_year}** | Tuổi tham gia: **{entry_age} tuổi**"
-)
-
-st.sidebar.markdown("---")
-st.sidebar.subheader("💰 Thông tin Hợp đồng")
-
-tp_in_millions = st.sidebar.number_input(
-    "Phí bảo hiểm cơ bản hàng năm (Triệu VNĐ):",
-    min_value=0.0,
-    value=float(default_tp_m),
-    step=1.0,
-    format="%g",
-    key="tp_input",
-)
-target_premium = int(tp_in_millions * 1_000_000)
-st.sidebar.success(f"👉 **Phí đóng:** `{fmt_vnd(target_premium)}`")
-
-sam_min_mult, sam_max_mult = get_sam_multipliers(prod_code, entry_age)
-dynamic_min_sa = max(abs_min_sa, target_premium * sam_min_mult)
-dynamic_max_sa = target_premium * sam_max_mult
-
-prem_term = st.sidebar.slider(
-    "Thời hạn đóng phí dự kiến (năm):",
-    min_value=min_term,
-    max_value=max_term,
-    value=10,
-    key="term_slider",
-)
-
-sa_in_millions = st.sidebar.number_input(
-    "Số Tiền Bảo Hiểm (STBH) (Triệu VNĐ):",
-    min_value=0.0,
-    value=float(default_sa_m),
-    step=10.0,
-    format="%g",
-    key="sa_input",
-)
-sum_assured = int(sa_in_millions * 1_000_000)
-st.sidebar.success(f"👉 **STBH:** `{fmt_vnd(sum_assured)}`")
-
-st.sidebar.caption(
-    f"📌 *Hạn mức STBH động ({entry_age} tuổi, phí {fmt_vnd(target_premium)}):*\n"
-    f"- Tối thiểu: **{fmt_vnd(dynamic_min_sa)}**\n"
-    f"- Tối đa: **{fmt_vnd(dynamic_max_sa)}**"
-)
-
-if sum_assured < dynamic_min_sa or sum_assured > dynamic_max_sa:
-    st.sidebar.warning(
-        f"⚠️ STBH vượt ngoài dải thẩm định động theo phí ({fmt_vnd(dynamic_min_sa)} - {fmt_vnd(dynamic_max_sa)})"
-    )
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 # ---------------------------------------------------------
@@ -361,7 +345,7 @@ def create_pdf_report(
             Paragraph(str(row["Năm/Tuổi"]), normal_style),
             Paragraph(fmt_vnd_short(row["Phí Đóng Dự Kiến"]), normal_style),
             Paragraph(fmt_vnd_short(row["Tổng Phí Lũy Kế"]), normal_style),
-            Paragraph(fmt_vnd_short(row["Thưởng Gắn Bó"]), normal_style),
+            Paragraph(fmt_vnd_short(row["Thưởng ĐH Gắn Bó"]), normal_style),
             Paragraph(fmt_vnd_short(row["Quyền Lợi Tử Vong"]), normal_style),
             Paragraph(fmt_vnd_short(row["Giá Trị Tài Khoản"]), normal_style),
             Paragraph(fmt_vnd_short(row["Giá Trị Hoàn Lại"]), normal_style),
@@ -393,7 +377,7 @@ def create_pdf_report(
 
 
 # ---------------------------------------------------------
-# 5. HIỂN THỊ GIAO DIỆN WEB
+# 5. HIỂN THỊ KẾT QUẢ & DÒNG TIỀN
 # ---------------------------------------------------------
 df_proj = generate_ul_projection(
     prod_code, entry_age, target_premium, prem_term, sum_assured
@@ -418,7 +402,7 @@ if not breakeven_df.empty:
     be_acc_val = fmt_vnd(first_be["Giá Trị Tài Khoản"])
 
     st.success(
-        f"💡 **Điểm nổi bật ({prod_name}):** Ở mức lãi suất giả định 5%/năm, Giá trị tài khoản hợp đồng sẽ **vượt Tổng phí đóng** từ **Năm hợp đồng thứ {be_year}** (lúc khách hàng **{be_age} tuổi**) với số tiền đạt **{be_acc_val}**."
+        f"💡 **({prod_name}):** Ở mức lãi suất giả định 5%/năm, Giá trị tài khoản hợp đồng sẽ **vượt Tổng phí đóng** từ **Năm hợp đồng thứ {be_year}** (lúc khách hàng **{be_age} tuổi**) với số tiền đạt **{be_acc_val}**."
     )
 else:
     st.warning(
@@ -427,7 +411,7 @@ else:
 
 col_title, col_btn = st.columns([3, 1])
 with col_title:
-    st.subheader("📋 Bảng Dòng Tiền Chi Tiết")
+    st.subheader("📋 Bảng Dòng Tiền Chi Tiết ")
 with col_btn:
     pdf_buffer = create_pdf_report(
         fullname,
@@ -439,7 +423,7 @@ with col_btn:
         df_proj,
     )
     st.download_button(
-        label="📥 Tải Minh Họa NHÁP (PDF)",
+        label="📥 Tải Minh Họa Nháp (PDF)",
         data=pdf_buffer,
         file_name=f"Minh_Hoa_Dich_Vu_{prod_code}_{fullname.replace(' ', '_')}.pdf",
         mime="application/pdf",
