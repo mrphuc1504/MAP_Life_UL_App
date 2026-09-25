@@ -6,16 +6,16 @@ from reportlab.pdfgen import canvas
 import streamlit as st
 
 # ---------------------------------------------------------
-# 1. CẤU HÌNH TRANG WEB
+# 1. CẤU HÌNH TRANG WEB & ÉP HIỂN THỊ SIDEBAR
 # ---------------------------------------------------------
 st.set_page_config(
     page_title="MAP Life UL Illustration Tool",
     page_icon="🛡️",
     layout="wide",
-    initial_sidebar_state="auto",
+    initial_sidebar_state="expanded",  # Ép mở sẵn bảng nhập thông tin ngay khi vào app
 )
 
-# CSS dọn dẹp giao diện tổng thể nhưng giữ nguyên các điều hướng hệ thống
+# CSS dọn dẹp giao diện tổng thể
 hide_ui_style = """
     <style>
     #MainMenu {visibility: hidden;}
@@ -62,7 +62,7 @@ def get_sam_multipliers(prod_code, age):
             return 5, 25
 
 
-st.title("🛡️ BẢNG MINH HỌA BHNT MAPLFE")
+st.title("🛡️ BẢNG MINH HỌA DÒNG TIỀN MAP LIFE UL")
 st.caption(
     "Công cụ hỗ trợ tư vấn & tính toán quyền lợi sản phẩm MAP Life Hạnh Phúc (UL2) & Bình An (UL3)"
 )
