@@ -6,7 +6,7 @@ from reportlab.pdfgen import canvas
 import streamlit as st
 
 # ---------------------------------------------------------
-# 1. CẤU HÌNH TRANG WEB
+# 1. CẤU HÌNH TRANG WEB & ẨN GIAO DIỆN HỆ THỐNG (TOOLBAR, FOOTER)
 # ---------------------------------------------------------
 st.set_page_config(
     page_title="MAP Life UL Illustration Tool",
@@ -14,6 +14,18 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="auto",
 )
+
+hide_ui_style = """
+    <style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    .stDeployButton {display:none;}
+    [data-testid="stToolbar"] {visibility: hidden !important;}
+    [data-testid="stDecoration"] {visibility: hidden !important;}
+    </style>
+"""
+st.markdown(hide_ui_style, unsafe_allow_html=True)
 
 
 def fmt_vnd(amount):
@@ -49,7 +61,7 @@ def get_sam_multipliers(prod_code, age):
             return 5, 25
 
 
-st.title("🛡️ BẢNG MINH HỌA DÒNG TIỀN MAP BHNT UL LIFE ")
+st.title("🛡️ BẢNG MINH HỌA BHNT UL MAP LIFE")
 st.caption(
     "Công cụ hỗ trợ tư vấn & tính toán quyền lợi sản phẩm MAP Life Hạnh Phúc (UL2) & Bình An (UL3)"
 )
@@ -85,7 +97,7 @@ else:
 st.sidebar.markdown("---")
 st.sidebar.subheader("👤 Thông tin Khách hàng")
 
-fullname = st.sidebar.text_input("Họ và tên NĐBH", "Tiểu Cường")
+fullname = st.sidebar.text_input("Họ và tên NĐBH", "Nguyễn Văn A")
 gender = st.sidebar.radio("Giới tính", ["Nam", "Nữ"], horizontal=True)
 
 col_d, col_m, col_y = st.sidebar.columns(3)
@@ -253,14 +265,12 @@ def create_pdf_report(
     c = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
 
-    # Tiêu đề PDF
     c.setFont("Helvetica-Bold", 14)
     c.drawString(50, height - 40, "BẢNG MINH HỌA QUYỀN LỢI BẢO HIỂM")
     c.setFont("Helvetica-Bold", 12)
     c.setFillColorRGB(0, 0.3, 0.6)
     c.drawString(50, height - 60, f"Sản phẩm: {prod_name}")
 
-    # Thông tin khách hàng
     c.setFont("Helvetica", 10)
     c.setFillColorRGB(0, 0, 0)
     c.drawString(
@@ -272,7 +282,6 @@ def create_pdf_report(
         f"STBH: {fmt_vnd(sum_assured)} | Phí cơ bản: {fmt_vnd(target_premium)}/năm ({prem_term} năm)",
     )
 
-    # Bảng dòng tiền dạng văn bản trong PDF
     c.setFont("Helvetica-Bold", 9)
     y_start = height - 130
     c.drawString(
@@ -286,7 +295,7 @@ def create_pdf_report(
     y = y_start - 20
 
     for index, row in df_p.iterrows():
-        if y < 50:  # Sang trang mới nếu hết giấy
+        if y < 50:
             c.showPage()
             c.setFont("Helvetica", 8)
             y = height - 50
@@ -341,7 +350,6 @@ else:
         f"💡 **Lưu ý ({prod_name}):** Với mức phí và thời gian đóng phí hiện tại, Giá trị tài khoản chưa vượt Tổng phí đóng trong khoảng thời gian minh họa."
     )
 
-# KHU VỰC TIÊU ĐỀ VÀ NÚT TẢI PDF
 col_title, col_btn = st.columns([3, 1])
 with col_title:
     st.subheader("📋 Bảng Dòng Tiền Chi Tiết Hợp Đồng")
