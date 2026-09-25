@@ -345,7 +345,7 @@ def create_pdf_report(
             Paragraph(str(row["Năm/Tuổi"]), normal_style),
             Paragraph(fmt_vnd_short(row["Phí Đóng Dự Kiến"]), normal_style),
             Paragraph(fmt_vnd_short(row["Tổng Phí Lũy Kế"]), normal_style),
-            Paragraph(fmt_vnd_short(row["Thưởng ĐH Gắn Bó"]), normal_style),
+            Paragraph(fmt_vnd_short(row["Thưởng Gắn Bó"]), normal_style),
             Paragraph(fmt_vnd_short(row["Quyền Lợi Tử Vong"]), normal_style),
             Paragraph(fmt_vnd_short(row["Giá Trị Tài Khoản"]), normal_style),
             Paragraph(fmt_vnd_short(row["Giá Trị Hoàn Lại"]), normal_style),
