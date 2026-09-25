@@ -12,7 +12,7 @@ import streamlit as st
 # 1. CẤU HÌNH GIAO DIỆN DI ĐỘNG (MOBILE-FIRST) & ẨN HỆ THỐNG
 # ---------------------------------------------------------
 st.set_page_config(
-    page_title="MAP Life UL Mobile", page_icon="🛡️", layout="centered"
+    page_title="MAPLife UL", page_icon="🛡️", layout="centered"
 )
 
 mobile_css = """
@@ -79,7 +79,7 @@ def get_sam_multipliers(prod_code, age):
             return 5, 25
 
 
-st.title("🛡️ MAP Life UL Mobile")
+st.title("🛡️ MAPLife UL ")
 st.caption("Công cụ minh họa dòng tiền & tư vấn bảo hiểm tối ưu trên di động")
 
 # ---------------------------------------------------------
