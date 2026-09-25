@@ -454,7 +454,7 @@ if not df_proj.empty:
         "Phí Đóng Dự Kiến",
         "Tổng Phí Lũy Kế",
         "Phí Đem Đầu Tư",
-        "Thưởng Gắn Bó",
+        "Thưởng ĐH Gắn Bó",
         "Quyền Lợi Tử Vong",
         "Giá Trị Tài Khoản",
         "Giá Trị Hoàn Lại",
