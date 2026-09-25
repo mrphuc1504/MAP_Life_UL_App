@@ -1,5 +1,8 @@
 from datetime import datetime
+import io
 import pandas as pd
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
 import streamlit as st
 
 # ---------------------------------------------------------
@@ -15,6 +18,10 @@ st.set_page_config(
 
 def fmt_vnd(amount):
     return f"{int(amount):,}".replace(",", ".") + " VNĐ"
+
+
+def fmt_vnd_short(amount):
+    return f"{int(amount):,}".replace(",", ".")
 
 
 def get_sam_multipliers(prod_code, age):
@@ -42,7 +49,7 @@ def get_sam_multipliers(prod_code, age):
             return 5, 25
 
 
-st.title("🛡️ BẢNG MINH HỌA DÒNG TIỀN BHNT UL MAP LIFE")
+st.title("🛡️ BẢNG MINH HỌA DÒNG TIỀN MAP BHNT UL LIFE ")
 st.caption(
     "Công cụ hỗ trợ tư vấn & tính toán quyền lợi sản phẩm MAP Life Hạnh Phúc (UL2) & Bình An (UL3)"
 )
@@ -237,7 +244,72 @@ def generate_ul_projection(
 
 
 # ---------------------------------------------------------
-# 4. HIỂN THỊ KẾT QUẢ VÀ BẢNG DÒNG TIỀN CHI TIẾT
+# 4. HÀM TẠO FILE PDF
+# ---------------------------------------------------------
+def create_pdf_report(
+    fullname, prod_name, entry_age, sum_assured, target_premium, prem_term, df_p
+):
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
+
+    # Tiêu đề PDF
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(50, height - 40, "BẢNG MINH HỌA QUYỀN LỢI BẢO HIỂM")
+    c.setFont("Helvetica-Bold", 12)
+    c.setFillColorRGB(0, 0.3, 0.6)
+    c.drawString(50, height - 60, f"Sản phẩm: {prod_name}")
+
+    # Thông tin khách hàng
+    c.setFont("Helvetica", 10)
+    c.setFillColorRGB(0, 0, 0)
+    c.drawString(
+        50, height - 85, f"Khách hàng: {fullname} | Tuổi tham gia: {entry_age}"
+    )
+    c.drawString(
+        50,
+        height - 100,
+        f"STBH: {fmt_vnd(sum_assured)} | Phí cơ bản: {fmt_vnd(target_premium)}/năm ({prem_term} năm)",
+    )
+
+    # Bảng dòng tiền dạng văn bản trong PDF
+    c.setFont("Helvetica-Bold", 9)
+    y_start = height - 130
+    c.drawString(
+        50,
+        y_start,
+        "Nam/Tuoi      Phi Dong      Tong Phi      Thuong      Tu Vong      Gia Tri TK      Hoan Lai",
+    )
+    c.line(50, y_start - 5, width - 50, y_start - 5)
+
+    c.setFont("Helvetica", 8)
+    y = y_start - 20
+
+    for index, row in df_p.iterrows():
+        if y < 50:  # Sang trang mới nếu hết giấy
+            c.showPage()
+            c.setFont("Helvetica", 8)
+            y = height - 50
+
+        line_str = (
+            f"{row['Năm/Tuổi']:<12} "
+            f"{fmt_vnd_short(row['Phí Đóng Dự Kiến']):<13} "
+            f"{fmt_vnd_short(row['Tổng Phí Lũy Kế']):<13} "
+            f"{fmt_vnd_short(row['Thưởng Gắn Bó']):<11} "
+            f"{fmt_vnd_short(row['Quyền Lợi Tử Vong']):<12} "
+            f"{fmt_vnd_short(row['Giá Trị Tài Khoản']):<15} "
+            f"{fmt_vnd_short(row['Giá Trị Hoàn Lại'])}"
+        )
+        c.drawString(50, y, line_str)
+        y -= 15
+
+    c.save()
+    buffer.seek(0)
+    return buffer
+
+
+# ---------------------------------------------------------
+# 5. HIỂN THỊ GIAO DIỆN WEB
 # ---------------------------------------------------------
 df_proj = generate_ul_projection(
     prod_code, entry_age, target_premium, prem_term, sum_assured
@@ -269,7 +341,27 @@ else:
         f"💡 **Lưu ý ({prod_name}):** Với mức phí và thời gian đóng phí hiện tại, Giá trị tài khoản chưa vượt Tổng phí đóng trong khoảng thời gian minh họa."
     )
 
-st.subheader("📋 Bảng Dòng Tiền Chi Tiết Hợp Đồng")
+# KHU VỰC TIÊU ĐỀ VÀ NÚT TẢI PDF
+col_title, col_btn = st.columns([3, 1])
+with col_title:
+    st.subheader("📋 Bảng Dòng Tiền Chi Tiết Hợp Đồng")
+with col_btn:
+    pdf_buffer = create_pdf_report(
+        fullname,
+        prod_name,
+        entry_age,
+        sum_assured,
+        target_premium,
+        prem_term,
+        df_proj,
+    )
+    st.download_button(
+        label="📥 Tải Bảng Minh Họa (PDF)",
+        data=pdf_buffer,
+        file_name=f"Minh_Hoa_Dich_Vu_{prod_code}_{fullname.replace(' ', '_')}.pdf",
+        mime="application/pdf",
+        type="primary",
+    )
 
 if not df_proj.empty:
     df_display = df_proj.copy().fillna(0)
