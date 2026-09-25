@@ -4,7 +4,22 @@ import pandas as pd
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 import streamlit as st
-
+hide_ui_style = """
+    <style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    .stDeployButton {display:none;}
+    [data-testid="stToolbar"] {visibility: hidden !important;}
+    [data-testid="stDecoration"] {visibility: hidden !important;}
+    [data-testid="stStatusWidget"] {visibility: hidden !important;}
+    div[data-testid="stAppViewContainer"] > div:nth-child(2) {visibility: hidden !important;}
+    .viewerBadge_container__1QSob {display: none !important;}
+    iframe[src*="streamlit.app"] {display: none !important;}
+    button[kind="header"] {display: none !important;}
+    </style>
+"""
+st.markdown(hide_ui_style, unsafe_allow_html=True)
 # ---------------------------------------------------------
 # 1. CẤU HÌNH TRANG WEB (ÉP HIỂN THỊ THANH MENU BÊN HÔNG)
 # ---------------------------------------------------------
