@@ -6,17 +6,17 @@ from reportlab.pdfgen import canvas
 import streamlit as st
 
 # ---------------------------------------------------------
-# 1. CẤU HÌNH TRANG WEB & ÉP HIỂN THỊ SIDEBAR TRÊN MOBILE
+# 1. CẤU HÌNH TRANG WEB
 # ---------------------------------------------------------
 st.set_page_config(
     page_title="MAP Life UL Illustration Tool",
     page_icon="🛡️",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="auto",  # Giữ nguyên tính năng ẩn/hiện linh hoạt của Streamlit
 )
 
-# CSS dọn dẹp giao diện và ÉP SIDEBAR LUÔN HIỂN THỊ trên cả điện thoại
-force_sidebar_style = """
+# CSS làm gọn giao diện và tối ưu hiển thị trên di động
+ui_style = """
     <style>
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
@@ -25,21 +25,20 @@ force_sidebar_style = """
     [data-testid="stToolbar"] {visibility: hidden !important;}
     [data-testid="stDecoration"] {visibility: hidden !important;}
     
-    /* Ép sidebar hiển thị và không bị thu gọn trên mobile */
-    [data-testid="stSidebar"] {
-        min-width: 280px !important;
-        max-width: 350px !important;
-        transform: none !important;
-        visibility: visible !important;
-    }
-    
-    /* Đảm bảo nút đóng/mở sidebar trên mobile không che khuất nội dung */
-    [data-testid="collapsedControl"] {
-        display: none !important;
+    /* Gợi ý cho người dùng di động chú ý nút mở menu bên góc trái */
+    @media (max-width: 768px) {
+        .mobile-notice {
+            background-color: #e6f4ea;
+            border-left: 4px solid #34a853;
+            padding: 10px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            border-radius: 4px;
+        }
     }
     </style>
 """
-st.markdown(force_sidebar_style, unsafe_allow_html=True)
+st.markdown(ui_style, unsafe_allow_html=True)
 
 
 def fmt_vnd(amount):
@@ -75,9 +74,19 @@ def get_sam_multipliers(prod_code, age):
             return 5, 25
 
 
-st.title("🛡️ BẢNG MINH HỌA MAPLIFE UL")
+st.title("🛡️ BẢNG MINH HỌA  MAPLIFE UL")
 st.caption(
     "Công cụ hỗ trợ tư vấn & tính toán quyền lợi sản phẩm MAP Life Hạnh Phúc (UL2) & Bình An (UL3)"
+)
+
+# Thêm một thông báo nhắc nhở nhẹ trên mobile giúp người dùng dễ nhận biết góc mở tab
+st.markdown(
+    """
+    <div class="mobile-notice">
+        📱 <b>Lưu ý trên điện thoại:</b> Nếu chưa thấy bảng nhập thông tin, vui lòng bấm vào <b>biểu tượng mũi tên nhỏ/menu (>)</b> ở góc trên bên trái màn hình để mở bảng cấu hình nhé!
+    </div>
+""",
+    unsafe_allow_html=True,
 )
 
 # ---------------------------------------------------------
@@ -408,10 +417,11 @@ if not df_proj.empty:
             "Thưởng Gắn Bó",
             "Quyền Lợi Tử Vong",
             "Giá Trị Tài Khoản",
-            "Giá Trilt Hoàn Lại" if "Giá Trilt Hoàn Lại" in df_display.columns else "Giá Trị Hoàn Lại",
+            "Giá Trị Hoàn Lại",
         ]],
         use_container_width=True,
         height=550,
     )
 else:
     st.warning("⚠️ Không có dữ liệu minh họa. Vui lòng kiểm tra lại Ngày sinh.")
+```eof
