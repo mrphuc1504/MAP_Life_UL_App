@@ -73,7 +73,7 @@ st.caption(
 # ---------------------------------------------------------
 # 2. THANH THÔNG TIN BÊN (SIDEBAR)
 # ---------------------------------------------------------
-st.sidebar.header("📋 THÔNG TIN ")
+st.sidebar.header("📋 THÔNG TIN")
 
 product_choice = st.sidebar.selectbox(
     "Lựa chọn sản phẩm bảo hiểm:",
@@ -236,7 +236,7 @@ if use_cir2:
     )
     sa_cir2 = int(sa_cir2_m * 1_000_000)
 
-use_pa = st.sidebar.checkbox("Bảo hiểm hỗ trọ TTVV do Tai Nạn (PDD1)", value=False)
+use_pa = st.sidebar.checkbox("Bảo hiểm hỗ trợ TTVV do Tai Nạn (PDD1)", value=False)
 sa_pa = 0
 if use_pa:
     sa_pa_m = st.sidebar.number_input(
@@ -251,7 +251,7 @@ if use_pa:
 
 
 # ---------------------------------------------------------
-# 3. ENGINE TÍNH TOÁN DÒNG TIỀN (CHUẨN LOGIC TỪNG SẢN PHẨM)
+# 3. ENGINE TÍNH TOÁN DÒNG TIỀN (CÓ TÍCH HỢP HỆ SỐ GIỚI TÍNH)
 # ---------------------------------------------------------
 def generate_ul_projection(
     prod_code,
@@ -262,12 +262,16 @@ def generate_ul_projection(
     sa_cir1,
     sa_cir2,
     sa_pa,
+    gender,
     interest_rate=0.05,
 ):
     records = []
     accumulated_prem = 0
     account_value = 0
     init_fee_rate = {1: 0.50, 2: 0.30, 3: 0.20, 4: 0.20, 5: 0.20}
+
+    # Hệ số điều chỉnh phí rủi ro theo giới tính (Nam = 1.0, Nữ = 0.85 do tỷ lệ rủi ro thấp hơn)
+    gender_factor = 1.0 if gender == "Nam" else 0.85
 
     sa_to_tp_ratio = sa / tp if tp > 0 else 0
     special_bonus_rate = (
@@ -282,12 +286,16 @@ def generate_ul_projection(
         current_age = entry_age + pol_year - 1
 
         rider_prem_cir1 = (
-            sa_cir1 * (0.0008 + current_age * 0.00005) if sa_cir1 > 0 else 0
+            sa_cir1 * (0.0008 + current_age * 0.00005) * gender_factor
+            if sa_cir1 > 0
+            else 0
         )
         rider_prem_cir2 = (
-            sa_cir2 * (0.0012 + current_age * 0.00006) if sa_cir2 > 0 else 0
+            sa_cir2 * (0.0012 + current_age * 0.00006) * gender_factor
+            if sa_cir2 > 0
+            else 0
         )
-        rider_prem_pa = sa_pa * 0.0012 if sa_pa > 0 else 0
+        rider_prem_pa = sa_pa * 0.0012 * gender_factor if sa_pa > 0 else 0
 
         annual_rider_prem = (
             rider_prem_cir1 + rider_prem_cir2 + rider_prem_pa
@@ -314,11 +322,13 @@ def generate_ul_projection(
             if pol_year == 10:
                 bonus += tp * special_bonus_rate
 
-        else:  # UL3 - Chỉ có thưởng định kỳ mỗi 3 năm, KHÔNG có thưởng đặc biệt năm 10
+        else:  # UL3 - Chỉ có thưởng định kỳ mỗi 3 năm
             if pol_year % 3 == 0:
                 bonus += tp * 0.04
 
-        coi_fee_main = sa * (0.0015 + (current_age * 0.0001))
+        coi_fee_main = (
+            sa * (0.0015 + (current_age * 0.0001)) * gender_factor
+        )
 
         account_value = (
             account_value + invest_prem - coi_fee_main + bonus
@@ -361,6 +371,7 @@ def create_pdf_report(
     sa_cir1,
     sa_cir2,
     sa_pa,
+    gender,
 ):
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
@@ -373,13 +384,15 @@ def create_pdf_report(
     c.drawString(
         50,
         height - 60,
-        f"San pham: {prod_name.replace('Hạnh Phúc', 'Hanh Phuc').replace('Bình An', 'Binh An')}",
+        f"San pham: {prod_name.replace('Hạnh Phúc', 'Hanh Phuc').replace('Bình An', 'Binh An')} ({gender})",
     )
 
     c.setFont("Helvetica", 10)
     c.setFillColorRGB(0, 0, 0)
     c.drawString(
-        50, height - 85, f"Khach hang: {fullname} | Tuoi tham gia: {entry_age}"
+        50,
+        height - 85,
+        f"Khach hang: {fullname} | Gioi tinh: {gender} | Tuoi: {entry_age}",
     )
     c.drawString(
         50,
@@ -446,6 +459,7 @@ df_proj = generate_ul_projection(
     sa_cir1,
     sa_cir2,
     sa_pa,
+    gender,
 )
 
 first_year_rider_prem = (
@@ -480,7 +494,7 @@ if not breakeven_df.empty:
     be_acc_val = fmt_vnd(first_be["Giá Trị Tài Khoản"])
 
     st.success(
-        f"💡 **({prod_name}):** Ở mức lãi suất giả định 5%/năm, Giá trị tài khoản hợp đồng sẽ **vượt Tổng phí đóng** từ **Năm hợp đồng thứ {be_year}** (lúc khách hàng **{be_age} tuổi**) với số tiền đạt **{be_acc_val}**."
+        f"💡 **({prod_name} - {gender}):** Ở mức lãi suất giả định 5%/năm, Giá trị tài khoản hợp đồng sẽ **vượt Tổng phí đóng** từ **Năm hợp đồng thứ {be_year}** (lúc khách hàng **{be_age} tuổi**) với số tiền đạt **{be_acc_val}**."
     )
 else:
     st.warning(
@@ -489,7 +503,7 @@ else:
 
 col_title, col_btn = st.columns([3, 1])
 with col_title:
-    st.subheader("📋Dòng Tiền Chi Tiết (Kèm Sản Phẩm Bổ Trợ)")
+    st.subheader("📋 Dòng Tiền Chi Tiết (Kèm Sản Phẩm Bổ Trợ)")
 with col_btn:
     pdf_buffer = create_pdf_report(
         fullname,
@@ -502,11 +516,12 @@ with col_btn:
         sa_cir1,
         sa_cir2,
         sa_pa,
+        gender,
     )
     st.download_button(
         label="📥 Tải Minh Họa Nháp (PDF)",
         data=pdf_buffer,
-        file_name=f"Minh_Hoa_Dich_Vu_{prod_code}_{fullname.replace(' ', '_')}.pdf",
+        file_name=f"Minh_Hoa_Dich_Vu_{prod_code}_{fullname.replace(' ', '_')}_{gender}.pdf",
         mime="application/pdf",
         type="primary",
     )
