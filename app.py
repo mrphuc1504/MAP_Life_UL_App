@@ -9,7 +9,7 @@ import streamlit as st
 # 1. CẤU HÌNH TRANG WEB & ẨN GIAO DIỆN HỆ THỐNG
 # ---------------------------------------------------------
 st.set_page_config(
-    page_title="MAP Life UL",
+    page_title="TÍNH NHANH MAPLIFE",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="auto",
@@ -65,7 +65,7 @@ def get_sam_multipliers(prod_code, age):
             return 5, 25
 
 
-st.title("🛡️ TÍNH NHANH UL")
+st.title("🛡️MINH HỌA DÒNG TIỀN UL")
 st.caption(
     "Công cụ hỗ trợ tư vấn & tính toán quyền lợi sản phẩm MAP Life Hạnh Phúc (UL2) & Bình An (UL3) kèm Sản phẩm bổ trợ"
 )
@@ -73,7 +73,7 @@ st.caption(
 # ---------------------------------------------------------
 # 2. THANH THÔNG TIN BÊN (SIDEBAR)
 # ---------------------------------------------------------
-st.sidebar.header("📋 THÔNG TIN ")
+st.sidebar.header("📋 THÔNG TIN")
 
 product_choice = st.sidebar.selectbox(
     "Lựa chọn sản phẩm bảo hiểm:",
@@ -154,7 +154,7 @@ if target_premium < abs_min_tp:
         f" **{fmt_vnd(abs_min_tp)}**!"
     )
 else:
-    st.sidebar.success(f"👉 **Phí đóng:** `{fmt_vnd(target_premium)}`")
+    st.sidebar.success(f"👉 **Phí cơ bản:** `{fmt_vnd(target_premium)}`")
 
 prem_term = st.sidebar.slider(
     "Thời hạn đóng phí dự kiến (năm):",
@@ -199,7 +199,7 @@ st.sidebar.caption(
 
 if sum_assured < dynamic_min_sa or sum_assured > dynamic_max_sa:
     st.sidebar.warning(
-        f"⚠️ STBH nằm ngoài phạm vi cho phép ({fmt_vnd(dynamic_min_sa)} - {fmt_vnd(dynamic_max_sa)})"
+        f"⚠️ STBH vượt ngoài phạm vi cho phép ({fmt_vnd(dynamic_min_sa)} - {fmt_vnd(dynamic_max_sa)})"
     )
 
 # ---------------------------------------------------------
@@ -236,7 +236,7 @@ if use_cir2:
     )
     sa_cir2 = int(sa_cir2_m * 1_000_000)
 
-use_pa = st.sidebar.checkbox("Bảo hiểm Tai nạn cá nhân (PA)", value=False)
+use_pa = st.sidebar.checkbox("Bảo hiểm Tai nạn cá nhân (PDD1)", value=False)
 sa_pa = 0
 if use_pa:
     sa_pa_m = st.sidebar.number_input(
@@ -251,7 +251,7 @@ if use_pa:
 
 
 # ---------------------------------------------------------
-# 3. ENGINE TÍNH TOÁN DÒNG TIỀN (BAO GỒM PHÍ RỦI RO BỔ TRỢ)
+# 3. ENGINE TÍNH TOÁN DÒNG TIỀN (CỘNG GỘP PHÍ BỔ TRỢ VÀO TỔNG PHÍ ĐÓNG)
 # ---------------------------------------------------------
 def generate_ul_projection(
     prod_code,
@@ -281,11 +281,31 @@ def generate_ul_projection(
     for pol_year in range(1, max_years + 1):
         current_age = entry_age + pol_year - 1
 
-        yearly_prem = tp if pol_year <= prem_term else 0
-        accumulated_prem += yearly_prem
+        # Tính phí bảo hiểm sản phẩm bổ trợ hằng năm
+        rider_prem_cir1 = (
+            sa_cir1 * (0.0008 + current_age * 0.00005) if sa_cir1 > 0 else 0
+        )
+        rider_prem_cir2 = (
+            sa_cir2 * (0.0012 + current_age * 0.00006) if sa_cir2 > 0 else 0
+        )
+        rider_prem_pa = sa_pa * 0.0012 if sa_pa > 0 else 0
+
+        annual_rider_prem = (
+            rider_prem_cir1 + rider_prem_cir2 + rider_prem_pa
+            if pol_year <= prem_term
+            else 0
+        )
+
+        yearly_prem_main = tp if pol_year <= prem_term else 0
+        yearly_prem_total = (
+            yearly_prem_main + annual_rider_prem
+        )  # Tổng phí đóng thực tế (Chính + Bổ trợ)
+        accumulated_prem += yearly_prem_total
 
         fee_rate = init_fee_rate.get(pol_year, 0.02)
-        invest_prem = yearly_prem * (1 - fee_rate)
+        invest_prem = (
+            yearly_prem_main * (1 - fee_rate)
+        )  # Phí đầu tư lấy từ phí cơ bản
 
         bonus = 0
         if prod_code == "UL2":
@@ -306,21 +326,11 @@ def generate_ul_projection(
             if pol_year == 10:
                 bonus += tp * special_bonus_rate
 
-        # Tính chi phí rủi ro chính và sản phẩm bổ trợ
+        # Khấu trừ chi phí rủi ro chính (phí bổ trợ đã được đóng trực tiếp qua annual_rider_prem)
         coi_fee_main = sa * (0.0015 + (current_age * 0.0001))
-        coi_fee_cir1 = (
-            sa_cir1 * (0.0008 + current_age * 0.00005) if sa_cir1 > 0 else 0
-        )
-        coi_fee_cir2 = (
-            sa_cir2 * (0.0012 + current_age * 0.00006) if sa_cir2 > 0 else 0
-        )
-        coi_fee_pa = sa_pa * 0.0012 if sa_pa > 0 else 0
-
-        total_rider_coi = coi_fee_cir1 + coi_fee_cir2 + coi_fee_pa
-        total_coi_fee = coi_fee_main + total_rider_coi
 
         account_value = (
-            account_value + invest_prem - total_coi_fee + bonus
+            account_value + invest_prem - coi_fee_main + bonus
         ) * (1 + interest_rate)
         if account_value < 0:
             account_value = 0
@@ -335,9 +345,8 @@ def generate_ul_projection(
             "Năm HĐ": pol_year,
             "Tuổi NĐBH": current_age,
             "Năm/Tuổi": f"{pol_year}/{current_age}",
-            "Phí Đóng Dự Kiến": yearly_prem,
+            "Phí Đóng Dự Kiến": yearly_prem_total,
             "Tổng Phí Lũy Kế": accumulated_prem,
-            "Phí Rủi Ro Bổ Trợ": total_rider_coi,
             "Thưởng Gắn Bó": bonus,
             "Quyền Lợi Tử Vong": death_benefit,
             "Giá Trị Tài Khoản": account_value,
@@ -348,7 +357,7 @@ def generate_ul_projection(
 
 
 # ---------------------------------------------------------
-# 4. HÀM TẠO FILE PDF (HIỂN THỊ ĐẦY ĐỦ PHÍ BỔ TRỢ)
+# 4. HÀM TẠO FILE PDF (HIỂN THỊ ĐẦY ĐỦ TỔNG PHÍ ĐÓNG)
 # ---------------------------------------------------------
 def create_pdf_report(
     fullname,
@@ -404,7 +413,7 @@ def create_pdf_report(
     c.drawString(
         50,
         y_start,
-        "Nam/Tuoi    Phi Dong     Phi Bo Tro    Thuong     Tu Vong     Gia Tri TK     Hoan Lai",
+        "Nam/Tuoi    Phi Dong     Tong Phi     Thuong     Tu Vong     Gia Tri TK     Hoan Lai",
     )
     c.line(50, y_start - 5, width - 50, y_start - 5)
 
@@ -420,7 +429,7 @@ def create_pdf_report(
         line_str = (
             f"{row['Năm/Tuổi']:<11} "
             f"{fmt_vnd_short(row['Phí Đóng Dự Kiến']):<12} "
-            f"{fmt_vnd_short(row['Phí Rủi Ro Bổ Trợ']):<13} "
+            f"{fmt_vnd_short(row['Tổng Phí Lũy Kế']):<13} "
             f"{fmt_vnd_short(row['Thưởng Gắn Bó']):<10} "
             f"{fmt_vnd_short(row['Quyền Lợi Tử Vong']):<11} "
             f"{fmt_vnd_short(row['Giá Trị Tài Khoản']):<14} "
@@ -448,11 +457,25 @@ df_proj = generate_ul_projection(
     sa_pa,
 )
 
+# Tính tổng phí năm đầu (Chính + Bổ trợ) để hiển thị metric
+first_year_rider_prem = (
+    (sa_cir1 * (0.0008 + entry_age * 0.00005) if sa_cir1 > 0 else 0)
+    + (sa_cir2 * (0.0012 + entry_age * 0.00006) if sa_cir2 > 0 else 0)
+    + (sa_pa * 0.0012 if sa_pa > 0 else 0)
+)
+total_first_year_prem = target_premium + first_year_rider_prem
+
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("Sản phẩm", prod_name)
 col2.metric("Số Tiền Bảo Hiểm", fmt_vnd(sum_assured))
-col3.metric("Phí Bảo Hiểm / Năm", fmt_vnd(target_premium))
-col4.metric("Tổng Phí Dự Kiến", fmt_vnd(target_premium * prem_term))
+col3.metric("Tổng Phí Năm Đầu", fmt_vnd(total_first_year_prem))
+col4.metric(
+    "Tổng Phí Dự Kiến",
+    fmt_vnd(
+        (target_premium * prem_term)
+        + (first_year_rider_prem * prem_term if prem_term > 0 else 0)
+    ),
+)
 
 st.markdown("---")
 
@@ -476,7 +499,7 @@ else:
 
 col_title, col_btn = st.columns([3, 1])
 with col_title:
-    st.subheader("📋 Bảng chi tiết dòng tiền (Kèm Sản Phẩm Bổ Trợ)")
+    st.subheader("📋 Dòng Tiền Chi Tiết (Kèm Sản Phẩm Bổ Trợ)")
 with col_btn:
     pdf_buffer = create_pdf_report(
         fullname,
@@ -503,7 +526,6 @@ if not df_proj.empty:
     money_cols = [
         "Phí Đóng Dự Kiến",
         "Tổng Phí Lũy Kế",
-        "Phí Rủi Ro Bổ Trợ",
         "Thưởng Gắn Bó",
         "Quyền Lợi Tử Vong",
         "Giá Trị Tài Khoản",
@@ -517,7 +539,7 @@ if not df_proj.empty:
         df_display[[
             "Năm/Tuổi",
             "Phí Đóng Dự Kiến",
-            "Phí Rủi Ro Bổ Trợ",
+            "Tổng Phí Lũy Kế",
             "Thưởng Gắn Bó",
             "Quyền Lợi Tử Vong",
             "Giá Trị Tài Khoản",
