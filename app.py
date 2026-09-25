@@ -13,7 +13,7 @@ import streamlit as st
 # 1. CẤU HÌNH TRANG WEB
 # ---------------------------------------------------------
 st.set_page_config(
-    page_title="Tình nhanh MAP Life UL",
+    page_title="Tính nhanh MAP Life UL",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="auto",  # Giữ nguyên tính năng ẩn/hiện linh hoạt của Streamlit
@@ -78,7 +78,7 @@ def get_sam_multipliers(prod_code, age):
             return 5, 25
 
 
-st.title("🛡️ BẢNG MINH HỌA MAP LIFE UL")
+st.title("🛡️ BẢNG MINH HỌA DÒNG TIỀN MAP LIFE UL")
 st.caption(
     "Công cụ hỗ trợ tư vấn & tính toán quyền lợi sản phẩm MAP Life Hạnh Phúc (UL2) & Bình An (UL3)"
 )
@@ -96,7 +96,7 @@ st.markdown(
 # ---------------------------------------------------------
 # 2. THANH THÔNG TIN BÊN (SIDEBAR)
 # ---------------------------------------------------------
-st.sidebar.header("📋 THÔNG TIN CẤU HÌNH")
+st.sidebar.header("📋 THÔNG TIN TÍNH TOÁN")
 
 product_choice = st.sidebar.selectbox(
     "Lựa chọn sản phẩm bảo hiểm:",
@@ -420,7 +420,7 @@ if not breakeven_df.empty:
     be_acc_val = fmt_vnd(first_be["Giá Trị Tài Khoản"])
 
     st.success(
-        f"💡 **Điểm nổi bật ({prod_name}):** Ở mức lãi suất giả định 5%/năm, Giá trị tài khoản hợp đồng sẽ **vượt Tổng phí đóng** từ **Năm hợp đồng thứ {be_year}** (lúc khách hàng **{be_age} tuổi**) với số tiền đạt **{be_acc_val}**."
+        f"💡 **({prod_name}):** Ở mức lãi suất giả định 5%/năm, Giá trị tài khoản hợp đồng sẽ **vượt Tổng phí đóng** từ **Năm hợp đồng thứ {be_year}** (lúc khách hàng **{be_age} tuổi**) với số tiền đạt **{be_acc_val}**."
     )
 else:
     st.warning(
@@ -429,7 +429,7 @@ else:
 
 col_title, col_btn = st.columns([3, 1])
 with col_title:
-    st.subheader("📋 Bảng Dòng Tiền Chi Tiết Hợp Đồng")
+    st.subheader("📋 Bảng Dòng Tiền Chi Tiết")
 with col_btn:
     pdf_buffer = create_pdf_report(
         fullname,
@@ -441,7 +441,7 @@ with col_btn:
         df_proj,
     )
     st.download_button(
-        label="📥 Tải Bảng Minh Họa (PDF)",
+        label="📥 Tải BMH nháp (PDF)",
         data=pdf_buffer,
         file_name=f"Minh_Hoa_Dich_Vu_{prod_code}_{fullname.replace(' ', '_')}.pdf",
         mime="application/pdf",
@@ -454,14 +454,16 @@ if not df_proj.empty:
         "Phí Đóng Dự Kiến",
         "Tổng Phí Lũy Kế",
         "Phí Đem Đầu Tư",
-        "Thưởng ĐH Gắn Bó",
+        "Thưởng Gắn Bó",
         "Quyền Lợi Tử Vong",
         "Giá Trị Tài Khoản",
         "Giá Trị Hoàn Lại",
     ]
 
+    # Kiểm tra an toàn cột tồn tại trước khi apply định dạng tiền tệ để tránh KeyError
     for col in money_cols:
-        df_display[col] = df_display[col].apply(fmt_vnd)
+        if col in df_display.columns:
+            df_display[col] = df_display[col].apply(fmt_vnd)
 
     st.dataframe(
         df_display[[
