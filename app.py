@@ -79,7 +79,7 @@ def get_sam_multipliers(prod_code, age):
             return 5, 25
 
 
-st.title("🛡️ MAP Life UL Mobile")
+st.title("🛡️ MAP Life UL")
 st.caption("Công cụ minh họa dòng tiền & tư vấn bảo hiểm tối ưu trên di động")
 
 # ---------------------------------------------------------
@@ -261,7 +261,7 @@ if use_pa:
 
 
 # ---------------------------------------------------------
-# 3. ENGINE TÍNH TOÁN DÒNG TIỀN
+# 3. ENGINE TÍNH TOÁN DÒNG TIỀN (CÓ TÍNH PHÍ RỦI RO BỔ TRỢ)
 # ---------------------------------------------------------
 def generate_ul_projection(
     prod_code,
@@ -327,7 +327,8 @@ def generate_ul_projection(
         )
         coi_fee_pa = sa_pa * 0.0012 if sa_pa > 0 else 0
 
-        total_coi_fee = coi_fee_main + coi_fee_cir1 + coi_fee_cir2 + coi_fee_pa
+        total_rider_fee = coi_fee_cir1 + coi_fee_cir2 + coi_fee_pa
+        total_coi_fee = coi_fee_main + total_rider_fee
 
         account_value = (
             account_value + invest_prem - total_coi_fee + bonus
@@ -347,7 +348,7 @@ def generate_ul_projection(
             "Năm/Tuổi": f"{pol_year}/{current_age}",
             "Phí Đóng Dự Kiến": yearly_prem,
             "Tổng Phí Lũy Kế": accumulated_prem,
-            "Phí Đem Đầu Tư": invest_prem,
+            "Phí Bổ Trợ": total_rider_fee,
             "Thưởng Gắn Bó": bonus,
             "Quyền Lợi Tử Vong": death_benefit,
             "Giá Trị Tài Khoản": account_value,
@@ -357,8 +358,15 @@ def generate_ul_projection(
     return pd.DataFrame(records)
 
 
+def get_rider_fee_year1(age, sa_cir1, sa_cir2, sa_pa):
+    fee_cir1 = sa_cir1 * (0.0008 + age * 0.00005) if sa_cir1 > 0 else 0
+    fee_cir2 = sa_cir2 * (0.0012 + age * 0.00006) if sa_cir2 > 0 else 0
+    fee_pa = sa_pa * 0.0012 if sa_pa > 0 else 0
+    return fee_cir1, fee_cir2, fee_pa
+
+
 # ---------------------------------------------------------
-# 4. HÀM TẠO FILE PDF CHUẨN PLATYPUS TABLE
+# 4. HÀM TẠO FILE PDF (CÓ CỘT PHÍ BỔ TRỢ & KHÔNG DẤU)
 # ---------------------------------------------------------
 def create_pdf_report(
     fullname,
@@ -376,8 +384,8 @@ def create_pdf_report(
     doc = SimpleDocTemplate(
         buffer,
         pagesize=A4,
-        rightMargin=25,
-        leftMargin=25,
+        rightMargin=20,
+        leftMargin=20,
         topMargin=30,
         bottomMargin=30,
     )
@@ -415,26 +423,33 @@ def create_pdf_report(
     <b>STBH chinh:</b> {fmt_vnd(sum_assured)} | <b>Phi co ban:</b> {fmt_vnd(target_premium)}/nam ({prem_term} nam)
     """
 
+    f1, f2, f3 = get_rider_fee_year1(entry_age, sa_cir1, sa_cir2, sa_pa)
     rider_parts = []
     if sa_cir1 > 0:
-        rider_parts.append(f"CIR1 ({fmt_vnd(sa_cir1)})")
+        rider_parts.append(
+            f"CIR1 ({fmt_vnd(sa_cir1)} - Phi nam 1: {fmt_vnd_short(f1)} VND)"
+        )
     if sa_cir2 > 0:
-        rider_parts.append(f"CIR2 ({fmt_vnd(sa_cir2)})")
+        rider_parts.append(
+            f"CIR2 ({fmt_vnd(sa_cir2)} - Phi nam 1: {fmt_vnd_short(f2)} VND)"
+        )
     if sa_pa > 0:
-        rider_parts.append(f"Tai nan ({fmt_vnd(sa_pa)})")
+        rider_parts.append(
+            f"Tai nan ({fmt_vnd(sa_pa)} - Phi nam 1: {fmt_vnd_short(f3)} VND)"
+        )
 
     rider_str = (
         ", ".join(rider_parts) if rider_parts else "Khong co san pham bo tro"
     )
     info_html += f"<br/><b>Bo tro:</b> {rider_str}"
 
-    elements.append(Paragraph(info_html, sub_style))
+    elements.append(Paragraph(remove_accents(info_html), sub_style))
     elements.append(Spacer(1, 10))
 
     table_data = [[
         "Nam/Tuoi",
         "Phi Dong",
-        "Tong Phi",
+        "Phi Bo Tro",
         "Thuong",
         "Tu Vong",
         "Gia Tri TK",
@@ -445,16 +460,16 @@ def create_pdf_report(
         table_data.append([
             str(row["Năm/Tuổi"]),
             fmt_vnd_short(row["Phí Đóng Dự Kiến"]),
-            fmt_vnd_short(row["Tổng Phí Lũy Kế"]),
+            fmt_vnd_short(row["Phí Bổ Trợ"]),
             fmt_vnd_short(row["Thưởng Gắn Bó"]),
             fmt_vnd_short(row["Quyền Lợi Tử Vong"]),
             fmt_vnd_short(row["Giá Trị Tài Khoản"]),
             fmt_vnd_short(row["Giá Trị Hoàn Lại"]),
         ])
 
-    # Tổng chiều rộng trang A4 là ~595pt, trừ lề 50pt còn lại 545pt vừa khít bảng
+    # Tổng chiều rộng trang A4 là ~595pt, trừ lề 40pt còn lại 555pt vừa khít 7 cột
     t = Table(
-        table_data, colWidths=[55, 75, 75, 60, 90, 100, 90], repeatRows=1
+        table_data, colWidths=[55, 75, 75, 60, 95, 100, 95], repeatRows=1
     )
     t.setStyle(
         TableStyle([
@@ -487,7 +502,7 @@ def create_pdf_report(
 
 
 # ---------------------------------------------------------
-# 5. HIỂN THỊ KẾT QUẢ GỌN GÀNG & KÈM SẢN PHẨM BỔ TRỢ
+# 5. HIỂN THỊ KẾT QUẢ GỌN GÀNG & KÈM PHÍ RỦI RO SẢN PHẨM BỔ TRỢ
 # ---------------------------------------------------------
 st.markdown("---")
 st.markdown("### 📊 Tóm tắt Quyền lợi")
@@ -514,16 +529,28 @@ with col_res2:
         f" `{fmt_vnd_short(target_premium * prem_term)} VNĐ`"
     )
 
+f1, f2, f3 = get_rider_fee_year1(entry_age, sa_cir1, sa_cir2, sa_pa)
 riders_summary = []
 if sa_cir1 > 0:
-    riders_summary.append(f"CIR1: {fmt_vnd_short(sa_cir1)}đ")
+    riders_summary.append(
+        f"CIR1: {fmt_vnd_short(sa_cir1)}đ (Phí năm 1:"
+        f" {fmt_vnd_short(f1)} VNĐ)"
+    )
 if sa_cir2 > 0:
-    riders_summary.append(f"CIR2: {fmt_vnd_short(sa_cir2)}đ")
+    riders_summary.append(
+        f"CIR2: {fmt_vnd_short(sa_cir2)}đ (Phí năm 1:"
+        f" {fmt_vnd_short(f2)} VNĐ)"
+    )
 if sa_pa > 0:
-    riders_summary.append(f"Tai nạn: {fmt_vnd_short(sa_pa)}đ")
+    riders_summary.append(
+        f"Tai nạn: {fmt_vnd_short(sa_pa)}đ (Phí năm 1:"
+        f" {fmt_vnd_short(f3)} VNĐ)"
+    )
 
 if riders_summary:
-    st.markdown(f"🛡️ **Sản phẩm bổ trợ:** {', '.join(riders_summary)}")
+    st.markdown("🛡️ **Sản phẩm bổ trợ & Phí rủi ro năm 1:**")
+    for r in riders_summary:
+        st.markdown(f"- {r}")
 else:
     st.markdown("🛡️ **Sản phẩm bổ trợ:** Không có")
 
@@ -575,7 +602,7 @@ if not df_proj.empty:
     money_cols = [
         "Phí Đóng Dự Kiến",
         "Tổng Phí Lũy Kế",
-        "Phí Đem Đầu Tư",
+        "Phí Bổ Trợ",
         "Thưởng Gắn Bó",
         "Quyền Lợi Tử Vong",
         "Giá Trị Tài Khoản",
@@ -589,7 +616,7 @@ if not df_proj.empty:
         df_display[[
             "Năm/Tuổi",
             "Phí Đóng Dự Kiến",
-            "Tổng Phí Lũy Kế",
+            "Phí Bổ Trợ",
             "Thưởng Gắn Bó",
             "Quyền Lợi Tử Vong",
             "Giá Trị Tài Khoản",
