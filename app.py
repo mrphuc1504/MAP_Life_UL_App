@@ -75,7 +75,7 @@ st.caption("Công cụ minh họa dòng tiền & tư vấn bảo hiểm tối ư
 # ---------------------------------------------------------
 # 2. KHU VỰC NHẬP LIỆU TRỰC TIẾP TRÊN MÀN HÌNH CHÍNH (MOBILE LAYOUT)
 # ---------------------------------------------------------
-st.markdown("### 📋 1. Chọn sản phẩm bảo hiểm")
+st.markdown("### 📋 1. Chọn sản phẩm BH")
 product_choice = st.selectbox(
     "Sản phẩm:",
     ["MAP Life Hạnh Phúc (UL2)", "MAP Life Bình An (UL3)"],
@@ -99,7 +99,7 @@ else:
     abs_min_sa = 200_000_000
 
 st.markdown("---")
-st.markdown("### 👤 2. Thông tin Khách hàng")
+st.markdown("### 👤 2.Thông tin KH")
 fullname = st.text_input("Họ và tên NĐBH", "Nguyễn Văn Đạt")
 gender = st.radio("Giới tính", ["Nam", "Nữ"], horizontal=True)
 
@@ -132,7 +132,7 @@ st.info(
 )
 
 st.markdown("---")
-st.markdown("### 💰 3. Thông tin Hợp đồng chính")
+st.markdown("### 💰 3. Thông tin Hợp đồng")
 
 if (
     "prev_prod_tp" not in st.session_state
@@ -201,7 +201,7 @@ st.caption(
 
 if sum_assured < dynamic_min_sa or sum_assured > dynamic_max_sa:
     st.warning(
-        f"⚠️ STBH ngoài dải thẩm định ({fmt_vnd(dynamic_min_sa)} - {fmt_vnd(dynamic_max_sa)})"
+        f"⚠️ STBH ngoài khung cho phép ({fmt_vnd(dynamic_min_sa)} - {fmt_vnd(dynamic_max_sa)})"
     )
 
 # ---------------------------------------------------------
@@ -218,7 +218,7 @@ if use_cir1:
         min_value=0.0,
         max_value=400.0,
         value=100.0,
-        step=10.0,
+        step=100.0,
         format="%g",
     )
     sa_cir1 = int(sa_cir1_m * 1_000_000)
@@ -230,8 +230,8 @@ if use_cir2:
         "STBH CIR2 (Tối đa 500tr):",
         min_value=0.0,
         max_value=500.0,
-        value=200.0,
-        step=10.0,
+        value=100.0,
+        step=100.0,
         format="%g",
     )
     sa_cir2 = int(sa_cir2_m * 1_000_000)
@@ -243,8 +243,8 @@ if use_pa:
         "STBH Tai nạn (Tối đa 500tr):",
         min_value=0.0,
         max_value=500.0,
-        value=200.0,
-        step=10.0,
+        value=100.0,
+        step=100.0,
         format="%g",
     )
     sa_pa = int(sa_pa_m * 1_000_000)
@@ -438,7 +438,7 @@ def create_pdf_report(
 # 5. HIỂN THỊ KẾT QUẢ GỌN GÀNG & KÈM SẢN PHẨM BỔ TRỢ
 # ---------------------------------------------------------
 st.markdown("---")
-st.markdown("### 📊 Tóm tắt Quyền lợi Hợp đồng")
+st.markdown("### 📊 Tóm tắt Quyền lợi")
 
 df_proj = generate_ul_projection(
     prod_code,
@@ -518,7 +518,7 @@ st.download_button(
 )
 
 st.markdown("---")
-st.subheader("📋 Bảng Chi Tiết Dòng Tiền")
+st.subheader("📋 Chi Tiết Dòng Tiền")
 
 if not df_proj.empty:
     df_display = df_proj.copy().fillna(0)
