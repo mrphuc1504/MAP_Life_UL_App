@@ -6,10 +6,10 @@ from reportlab.pdfgen import canvas
 import streamlit as st
 
 # ---------------------------------------------------------
-# 1. CẤU HÌNH TRANG WEB & ẨN HOÀN TOÀN GIAO DIỆN THỪA
+# 1. CẤU HÌNH TRANG WEB & TỐI ƯU GIAO DIỆN DI ĐỘNG
 # ---------------------------------------------------------
 st.set_page_config(
-    page_title="Tính nhanh UL MAPLife",
+    page_title="Tính nhanh UL",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="auto",
@@ -19,14 +19,11 @@ hide_ui_style = """
     <style>
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    header {visibility: hidden;}
     .stDeployButton {display:none;}
-    [data-testid="stToolbar"] {display: none !important; height: 0px !important; visibility: hidden !important;}
     [data-testid="stDecoration"] {visibility: hidden !important;}
     [data-testid="stStatusWidget"] {visibility: hidden !important;}
     .viewerBadge_container__1QSob {display: none !important;}
     iframe[src*="streamlit.app"] {display: none !important;}
-    button[kind="header"] {display: none !important;}
     </style>
 """
 st.markdown(hide_ui_style, unsafe_allow_html=True)
@@ -101,7 +98,7 @@ else:
 st.sidebar.markdown("---")
 st.sidebar.subheader("👤 Thông tin Khách hàng")
 
-fullname = st.sidebar.text_input("Họ và tên NĐBH", " Lộc Đại Phu")
+fullname = st.sidebar.text_input("Họ và tên NĐBH", "Nguyễn Văn A")
 gender = st.sidebar.radio("Giới tính", ["Nam", "Nữ"], horizontal=True)
 
 col_d, col_m, col_y = st.sidebar.columns(3)
@@ -260,7 +257,7 @@ def generate_ul_projection(
 
 
 # ---------------------------------------------------------
-# 4. HÀM TẠO FILE PDF (DÙNG TIẾNG VIỆT KHÔNG DẤU CHUẨN SẠCH ĐẸP)
+# 4. HÀM TẠO FILE PDF (CĂN CHỈNH KHOẢNG CÁCH CỘT THOÁNG ĐẸP)
 # ---------------------------------------------------------
 def create_pdf_report(
     fullname, prod_name, entry_age, sum_assured, target_premium, prem_term, df_p
@@ -269,56 +266,81 @@ def create_pdf_report(
     c = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
 
+    # Tiêu đề báo cáo
     c.setFont("Helvetica-Bold", 14)
-    c.drawString(50, height - 40, "BANG MINH HOA QUYEN LOI BAO HIEM")
-    c.setFont("Helvetica-Bold", 12)
+    c.drawString(30, height - 35, "BANG MINH HOA QUYEN LOI BAO HIEM")
+
+    c.setFont("Helvetica-Bold", 11)
     c.setFillColorRGB(0, 0.3, 0.6)
     c.drawString(
-        50,
-        height - 60,
+        30,
+        height - 55,
         f"San pham: {prod_name.replace('Hạnh Phúc', 'Hanh Phuc').replace('Bình An', 'Binh An')}",
     )
 
-    c.setFont("Helvetica", 10)
+    c.setFont("Helvetica", 9)
     c.setFillColorRGB(0, 0, 0)
     c.drawString(
-        50, height - 85, f"Khach hang: {fullname} | Tuoi tham gia: {entry_age}"
+        30, height - 75, f"Khach hang: {fullname} | Tuoi tham gia: {entry_age}"
     )
     c.drawString(
-        50,
-        height - 100,
+        30,
+        height - 90,
         f"STBH: {fmt_vnd(sum_assured)} | Phi co ban: {fmt_vnd(target_premium)}/nam ({prem_term} nam)",
     )
 
-    c.setFont("Helvetica-Bold", 9)
-    y_start = height - 130
-    c.drawString(
-        50,
-        y_start,
-        "Nam/Tuoi      Phi Dong      Tong Phi      Thuong      Tu Vong      Gia Tri TK      Hoan Lai",
-    )
-    c.line(50, y_start - 5, width - 50, y_start - 5)
+    # ĐỊNH NGHĨA TỌA ĐỘ X CHO TỪNG CỘT (GIÚP CÁC CỘT CÁCH XA NHAU KHÔNG BỊ ĐÈ CHỮ)
+    # Tổng chiều ngang A4 khoảng 595 pt, lề trái 30 pt
+    col_x = [
+        30,  # 1. Năm/Tuổi
+        95,  # 2. Phí Đóng
+        170,  # 3. Tổng Phí
+        245,  # 4. Thưởng
+        315,  # 5. Tử Vong
+        390,  # 6. Giá Trị TK
+        485,  # 7. Hoàn Lại
+    ]
+
+    c.setFont("Helvetica-Bold", 8)
+    y_start = height - 120
+
+    headers = [
+        "Nam/Tuoi",
+        "Phi Dong",
+        "Tong Phi",
+        "Thuong",
+        "Tu Vong",
+        "Gia Tri TK",
+        "Hoan Lai",
+    ]
+    for i, h in enumerate(headers):
+        c.drawString(col_x[i], y_start, h)
+
+    c.line(30, y_start - 5, width - 30, y_start - 5)
 
     c.setFont("Helvetica", 8)
-    y = y_start - 20
+    y = y_start - 18
 
     for index, row in df_p.iterrows():
-        if y < 50:
+        if y < 40:  # Sang trang mới khi hết chiều cao trang giấy
             c.showPage()
             c.setFont("Helvetica", 8)
-            y = height - 50
+            y = height - 40
 
-        line_str = (
-            f"{row['Năm/Tuổi']:<12} "
-            f"{fmt_vnd_short(row['Phí Đóng Dự Kiến']):<13} "
-            f"{fmt_vnd_short(row['Tổng Phí Lũy Kế']):<13} "
-            f"{fmt_vnd_short(row['Thưởng Gắn Bó']):<11} "
-            f"{fmt_vnd_short(row['Quyền Lợi Tử Vong']):<12} "
-            f"{fmt_vnd_short(row['Giá Trị Tài Khoản']):<15} "
-            f"{fmt_vnd_short(row['Giá Trị Hoàn Lại'])}"
-        )
-        c.drawString(50, y, line_str)
-        y -= 15
+        row_data = [
+            str(row["Năm/Tuổi"]),
+            fmt_vnd_short(row["Phí Đóng Dự Kiến"]),
+            fmt_vnd_short(row["Tổng Phí Lũy Kế"]),
+            fmt_vnd_short(row["Thưởng Gắn Bó"]),
+            fmt_vnd_short(row["Quyền Lợi Tử Vong"]),
+            fmt_vnd_short(row["Giá Trị Tài Khoản"]),
+            fmt_vnd_short(row["Giá Trị Hoàn Lại"]),
+        ]
+
+        for i, val in enumerate(row_data):
+            c.drawString(col_x[i], y, val)
+
+        y -= 14
 
     c.save()
     buffer.seek(0)
@@ -360,7 +382,7 @@ else:
 
 col_title, col_btn = st.columns([3, 1])
 with col_title:
-    st.subheader("📋 Bảng Dòng Tiền Chi Tiết Hợp Đồng")
+    st.subheader("📋 Bảng Dòng Tiền Chi Tiết")
 with col_btn:
     pdf_buffer = create_pdf_report(
         fullname,
