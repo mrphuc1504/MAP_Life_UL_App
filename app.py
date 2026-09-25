@@ -99,7 +99,7 @@ else:
     abs_min_sa = 200_000_000
 
 st.markdown("---")
-st.markdown("### 👤 2.Thông tin KH")
+st.markdown("### 👤 2. Thông tin KH")
 fullname = st.text_input("Họ và tên NĐBH", "Nguyễn Văn Đạt")
 gender = st.radio("Giới tính", ["Nam", "Nữ"], horizontal=True)
 
@@ -208,7 +208,7 @@ if sum_assured < dynamic_min_sa or sum_assured > dynamic_max_sa:
 # SẢN PHẨM BỔ TRỢ (RIDERS)
 # ---------------------------------------------------------
 st.markdown("---")
-st.markdown("### 🛡️ 4. Sản phẩm bổ trợ (Riders)")
+st.markdown("### 🛡️ 4. SP bổ trợ (Riders)")
 
 use_cir1 = st.checkbox("Bệnh hiểm nghèo (CIR1)", value=False)
 sa_cir1 = 0
