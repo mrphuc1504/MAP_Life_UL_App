@@ -6,7 +6,7 @@ from reportlab.pdfgen import canvas
 import streamlit as st
 
 # ---------------------------------------------------------
-# 1. CẤU HÌNH TRANG WEB & CSS CHUẨN XÁC (GIỮ NGUYÊN NÚT MỞ MENU)
+# 1. CẤU HÌNH TRANG WEB
 # ---------------------------------------------------------
 st.set_page_config(
     page_title="MAP Life UL Illustration Tool",
@@ -15,6 +15,7 @@ st.set_page_config(
     initial_sidebar_state="auto",
 )
 
+# CSS dọn dẹp giao diện tổng thể nhưng giữ nguyên các điều hướng hệ thống
 hide_ui_style = """
     <style>
     #MainMenu {visibility: hidden;}
@@ -23,12 +24,6 @@ hide_ui_style = """
     .stDeployButton {display:none;}
     [data-testid="stToolbar"] {visibility: hidden !important;}
     [data-testid="stDecoration"] {visibility: hidden !important;}
-    [data-testid="stStatusWidget"] {visibility: hidden !important;}
-    
-    /* Chỉ ẩn đúng huy hiệu góc phải, KHÔNG làm ảnh hưởng đến nút mở sidebar >> */
-    div[class*="viewerBadge"] {
-        display: none !important;
-    }
     </style>
 """
 st.markdown(hide_ui_style, unsafe_allow_html=True)
@@ -67,7 +62,7 @@ def get_sam_multipliers(prod_code, age):
             return 5, 25
 
 
-st.title("🛡️ BẢNG MINH HỌA BHNT UL MAPLIFE")
+st.title("🛡️ BẢNG MINH HỌA BHNT MAPLFE")
 st.caption(
     "Công cụ hỗ trợ tư vấn & tính toán quyền lợi sản phẩm MAP Life Hạnh Phúc (UL2) & Bình An (UL3)"
 )
