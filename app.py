@@ -6,7 +6,7 @@ from reportlab.pdfgen import canvas
 import streamlit as st
 
 # ---------------------------------------------------------
-# 1. CẤU HÌNH TRANG WEB & ẨN HOÀN TOÀN CÁC NÚT NỔI HỆ THỐNG
+# 1. CẤU HÌNH TRANG WEB & CSS XỬ LÝ GIAO DIỆN DI ĐỘNG
 # ---------------------------------------------------------
 st.set_page_config(
     page_title="MAP Life UL Illustration Tool",
@@ -25,13 +25,17 @@ hide_ui_style = """
     [data-testid="stDecoration"] {visibility: hidden !important;}
     [data-testid="stStatusWidget"] {visibility: hidden !important;}
     
-    /* Ép ẩn hoàn toàn khung chứa 2 nút góc dưới bên phải mà vẫn giữ nguyên nút mở menu >> */
+    /* Ẩn hoàn toàn khung chứa 2 nút nổi góc dưới bên phải nhưng GIỮ NGUYÊN nút >> */
+    div.stApp > div:has(iframe) {
+        display: none !important;
+    }
     iframe {
         display: none !important;
     }
     </style>
 """
 st.markdown(hide_ui_style, unsafe_allow_html=True)
+
 
 def fmt_vnd(amount):
     return f"{int(amount):,}".replace(",", ".") + " VNĐ"
