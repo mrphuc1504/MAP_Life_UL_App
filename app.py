@@ -9,7 +9,7 @@ import streamlit as st
 # 1. CẤU HÌNH TRANG WEB & ẨN GIAO DIỆN HỆ THỐNG
 # ---------------------------------------------------------
 st.set_page_config(
-    page_title="Tính nhanh UL",
+    page_title="MAP Life UL Illustration Tool",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="auto",
@@ -65,7 +65,7 @@ def get_sam_multipliers(prod_code, age):
             return 5, 25
 
 
-st.title("🛡️MINH HỌA DÒNG TIỀN ")
+st.title("🛡️ BẢNG MINH HỌA DÒNG TIỀN MAP LIFE UL")
 st.caption(
     "Công cụ hỗ trợ tư vấn & tính toán quyền lợi sản phẩm MAP Life Hạnh Phúc (UL2) & Bình An (UL3) kèm Sản phẩm bổ trợ"
 )
@@ -73,7 +73,7 @@ st.caption(
 # ---------------------------------------------------------
 # 2. THANH THÔNG TIN BÊN (SIDEBAR)
 # ---------------------------------------------------------
-st.sidebar.header("📋 THÔNG TIN")
+st.sidebar.header("📋 THÔNG TIN CẤU HÌNH")
 
 product_choice = st.sidebar.selectbox(
     "Lựa chọn sản phẩm bảo hiểm:",
@@ -99,7 +99,7 @@ else:
 st.sidebar.markdown("---")
 st.sidebar.subheader("👤 Thông tin Khách hàng")
 
-fullname = st.sidebar.text_input("Họ và tên NĐBH", "Nguyễn Văn A")
+fullname = st.sidebar.text_input("Họ và tên NĐBH", "Nguyễn Văn Đạt")
 gender = st.sidebar.radio("Giới tính", ["Nam", "Nữ"], horizontal=True)
 
 col_d, col_m, col_y = st.sidebar.columns(3)
@@ -214,10 +214,10 @@ sa_cir1 = 0
 if use_cir1:
     sa_cir1_m = st.sidebar.number_input(
         "STBH CIR1 (Triệu VNĐ - Tối đa 400tr):",
-        min_value=100.0,
+        min_value=10.0,
         max_value=400.0,
         value=100.0,
-        step=100.0,
+        step=10.0,
         format="%g",
     )
     sa_cir1 = int(sa_cir1_m * 1_000_000)
@@ -230,10 +230,10 @@ sa_cir2 = 0
 if use_cir2:
     sa_cir2_m = st.sidebar.number_input(
         "STBH CIR2 (Triệu VNĐ - Tối đa 500tr):",
-        min_value=100.0,
+        min_value=10.0,
         max_value=500.0,
         value=200.0,
-        step=100.0,
+        step=10.0,
         format="%g",
     )
     sa_cir2 = int(sa_cir2_m * 1_000_000)
@@ -244,10 +244,10 @@ sa_pa = 0
 if use_pa:
     sa_pa_m = st.sidebar.number_input(
         "STBH Tai nạn (Triệu VNĐ - Tối đa 500tr):",
-        min_value=100.0,
+        min_value=10.0,
         max_value=500.0,
         value=200.0,
-        step=100.0,
+        step=10.0,
         format="%g",
     )
     sa_pa = int(sa_pa_m * 1_000_000)
@@ -472,7 +472,7 @@ if not breakeven_df.empty:
     be_acc_val = fmt_vnd(first_be["Giá Trị Tài Khoản"])
 
     st.success(
-        f"💡 **({prod_name}):** Ở mức lãi suất giả định 5%/năm, Giá trị tài khoản hợp đồng sẽ **vượt Tổng phí đóng** từ **Năm hợp đồng thứ {be_year}** (lúc khách hàng **{be_age} tuổi**) với số tiền đạt **{be_acc_val}**."
+        f"💡 **Điểm nổi bật ({prod_name}):** Ở mức lãi suất giả định 5%/năm, Giá trị tài khoản hợp đồng sẽ **vượt Tổng phí đóng** từ **Năm hợp đồng thứ {be_year}** (lúc khách hàng **{be_age} tuổi**) với số tiền đạt **{be_acc_val}**."
     )
 else:
     st.warning(
@@ -481,7 +481,7 @@ else:
 
 col_title, col_btn = st.columns([3, 1])
 with col_title:
-    st.subheader("📋 Bảng Dòng Tiền Chi Tiết (Kèm Sản Phẩm Bổ Trợ)")
+    st.subheader("📋 Bảng Dòng Tiền Chi Tiết Hợp Đồng (Kèm Sản Phẩm Bổ Trợ)")
 with col_btn:
     pdf_buffer = create_pdf_report(
         fullname,
@@ -496,7 +496,7 @@ with col_btn:
         sa_pa,
     )
     st.download_button(
-        label="📥 Tải Minh Họa Nháp (PDF)",
+        label="📥 Tải Bảng Minh Họa (PDF)",
         data=pdf_buffer,
         file_name=f"Minh_Hoa_Dich_Vu_{prod_code}_{fullname.replace(' ', '_')}.pdf",
         mime="application/pdf",
