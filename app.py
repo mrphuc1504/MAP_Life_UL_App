@@ -1,8 +1,11 @@
 from datetime import datetime
 import io
+import unicodedata
 import pandas as pd
+from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 import streamlit as st
 
 # ---------------------------------------------------------
@@ -42,6 +45,13 @@ def fmt_vnd(amount):
 
 def fmt_vnd_short(amount):
     return f"{int(amount):,}".replace(",", ".")
+
+
+def remove_accents(text):
+    if not text:
+        return ""
+    nfkd = unicodedata.normalize("NFKD", text)
+    return "".join([c for c in nfkd if not unicodedata.combining(c)])
 
 
 def get_sam_multipliers(prod_code, age):
@@ -348,7 +358,7 @@ def generate_ul_projection(
 
 
 # ---------------------------------------------------------
-# 4. HÀM TẠO FILE PDF
+# 4. HÀM TẠO FILE PDF CHUẨN PLATYPUS TABLE
 # ---------------------------------------------------------
 def create_pdf_report(
     fullname,
@@ -363,73 +373,115 @@ def create_pdf_report(
     sa_pa,
 ):
     buffer = io.BytesIO()
-    c = canvas.Canvas(buffer, pagesize=A4)
-    width, height = A4
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=25,
+        leftMargin=25,
+        topMargin=30,
+        bottomMargin=30,
+    )
+    elements = []
+    styles = getSampleStyleSheet()
 
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(50, height - 40, "BANG MINH HOA QUYEN LOI BAO HIEM")
-    c.setFont("Helvetica-Bold", 12)
-    c.setFillColorRGB(0, 0.3, 0.6)
-    c.drawString(
-        50,
-        height - 60,
-        f"San pham: {prod_name.replace('Hạnh Phúc', 'Hanh Phuc').replace('Bình An', 'Binh An')}",
+    title_style = ParagraphStyle(
+        "TitleStyle",
+        parent=styles["Heading1"],
+        fontName="Helvetica-Bold",
+        fontSize=13,
+        leading=16,
+        textColor=colors.HexColor("#003366"),
+        alignment=1,
     )
 
-    c.setFont("Helvetica", 10)
-    c.setFillColorRGB(0, 0, 0)
-    c.drawString(
-        50, height - 85, f"Khach hang: {fullname} | Tuoi tham gia: {entry_age}"
-    )
-    c.drawString(
-        50,
-        height - 100,
-        f"STBH chinh: {fmt_vnd(sum_assured)} | Phi co ban: {fmt_vnd(target_premium)}/nam ({prem_term} nam)",
+    sub_style = ParagraphStyle(
+        "SubStyle",
+        parent=styles["Normal"],
+        fontName="Helvetica",
+        fontSize=8.5,
+        leading=12,
+        textColor=colors.HexColor("#222222"),
     )
 
-    rider_str = "Bo tro: "
+    elements.append(Paragraph("BANG MINH HOA QUYEN LOI BAO HIEM", title_style))
+    elements.append(Spacer(1, 8))
+
+    safe_name = remove_accents(fullname)
+    safe_prod = remove_accents(prod_name)
+
+    info_html = f"""
+    <b>San pham:</b> {safe_prod}<br/>
+    <b>Khach hang:</b> {safe_name} | <b>Tuoi:</b> {entry_age}<br/>
+    <b>STBH chinh:</b> {fmt_vnd(sum_assured)} | <b>Phi co ban:</b> {fmt_vnd(target_premium)}/nam ({prem_term} nam)
+    """
+
+    rider_parts = []
     if sa_cir1 > 0:
-        rider_str += f"CIR1 ({fmt_vnd(sa_cir1)}) "
+        rider_parts.append(f"CIR1 ({fmt_vnd(sa_cir1)})")
     if sa_cir2 > 0:
-        rider_str += f"CIR2 ({fmt_vnd(sa_cir2)}) "
+        rider_parts.append(f"CIR2 ({fmt_vnd(sa_cir2)})")
     if sa_pa > 0:
-        rider_str += f"Tai nan ({fmt_vnd(sa_pa)})"
-    if sa_cir1 == 0 and sa_cir2 == 0 and sa_pa == 0:
-        rider_str += "Khong co"
+        rider_parts.append(f"Tai nan ({fmt_vnd(sa_pa)})")
 
-    c.drawString(50, height - 115, rider_str)
-
-    c.setFont("Helvetica-Bold", 9)
-    y_start = height - 140
-    c.drawString(
-        50,
-        y_start,
-        "Nam/Tuoi      Phi Dong      Tong Phi      Thuong      Tu Vong      Gia Tri TK      Hoan Lai",
+    rider_str = (
+        ", ".join(rider_parts) if rider_parts else "Khong co san pham bo tro"
     )
-    c.line(50, y_start - 5, width - 50, y_start - 5)
+    info_html += f"<br/><b>Bo tro:</b> {rider_str}"
 
-    c.setFont("Helvetica", 8)
-    y = y_start - 20
+    elements.append(Paragraph(info_html, sub_style))
+    elements.append(Spacer(1, 10))
 
-    for index, row in df_p.iterrows():
-        if y < 50:
-            c.showPage()
-            c.setFont("Helvetica", 8)
-            y = height - 50
+    table_data = [[
+        "Nam/Tuoi",
+        "Phi Dong",
+        "Tong Phi",
+        "Thuong",
+        "Tu Vong",
+        "Gia Tri TK",
+        "Hoan Lai",
+    ]]
 
-        line_str = (
-            f"{row['Năm/Tuổi']:<12} "
-            f"{fmt_vnd_short(row['Phí Đóng Dự Kiến']):<13} "
-            f"{fmt_vnd_short(row['Tổng Phí Lũy Kế']):<13} "
-            f"{fmt_vnd_short(row['Thưởng Gắn Bó']):<11} "
-            f"{fmt_vnd_short(row['Quyền Lợi Tử Vong']):<12} "
-            f"{fmt_vnd_short(row['Giá Trị Tài Khoản']):<15} "
-            f"{fmt_vnd_short(row['Giá Trị Hoàn Lại'])}"
-        )
-        c.drawString(50, y, line_str)
-        y -= 15
+    for _, row in df_p.iterrows():
+        table_data.append([
+            str(row["Năm/Tuổi"]),
+            fmt_vnd_short(row["Phí Đóng Dự Kiến"]),
+            fmt_vnd_short(row["Tổng Phí Lũy Kế"]),
+            fmt_vnd_short(row["Thưởng Gắn Bó"]),
+            fmt_vnd_short(row["Quyền Lợi Tử Vong"]),
+            fmt_vnd_short(row["Giá Trị Tài Khoản"]),
+            fmt_vnd_short(row["Giá Trị Hoàn Lại"]),
+        ])
 
-    c.save()
+    # Tổng chiều rộng trang A4 là ~595pt, trừ lề 50pt còn lại 545pt vừa khít bảng
+    t = Table(
+        table_data, colWidths=[55, 75, 75, 60, 90, 100, 90], repeatRows=1
+    )
+    t.setStyle(
+        TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#003366")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, 0), 8),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("BOTTOMPADDING", (0, 0), (-1, 0), 6),
+            ("TOPPADDING", (0, 0), (-1, 0), 6),
+            ("BOTTOMPADDING", (0, 1), (-1, -1), 3),
+            ("TOPPADDING", (0, 1), (-1, -1), 3),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#cccccc")),
+            ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+            ("FONTSIZE", (0, 1), (-1, -1), 7.5),
+            (
+                "ROWBACKGROUNDS",
+                (0, 1),
+                (-1, -1),
+                [colors.white, colors.HexColor("#f8f9fa")],
+            ),
+        ])
+    )
+
+    elements.append(t)
+    doc.build(elements)
     buffer.seek(0)
     return buffer
 
@@ -451,7 +503,6 @@ df_proj = generate_ul_projection(
     sa_pa,
 )
 
-# Hiển thị thông tin tổng quan dạng lưới nhỏ gọn
 col_res1, col_res2 = st.columns(2)
 with col_res1:
     st.markdown(f"**Sản phẩm:** `{prod_name}`")
@@ -463,7 +514,6 @@ with col_res2:
         f" `{fmt_vnd_short(target_premium * prem_term)} VNĐ`"
     )
 
-# Hiển thị bổ trợ đã chọn nếu có
 riders_summary = []
 if sa_cir1 > 0:
     riders_summary.append(f"CIR1: {fmt_vnd_short(sa_cir1)}đ")
