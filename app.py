@@ -120,7 +120,7 @@ gender = st.radio("Giới tính", ["Nam", "Nữ"], horizontal=True)
 # Dùng st.date_input chuẩn, gọn gàng, tự nhiên
 birth_date = st.date_input(
     "Ngày tháng năm sinh",
-    value=date(1993,9, 18),
+    value=date(1993, 9, 18),
     min_value=date(1950, 1, 1),
     max_value=date.today(),
     key="dob_input",
