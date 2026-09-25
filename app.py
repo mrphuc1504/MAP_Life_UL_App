@@ -9,7 +9,7 @@ import streamlit as st
 # 1. CẤU HÌNH TRANG WEB & ẨN GIAO DIỆN HỆ THỐNG
 # ---------------------------------------------------------
 st.set_page_config(
-    page_title="Tính nhanh UL2,3",
+    page_title="Tính nhanh UL",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="auto",
@@ -65,7 +65,7 @@ def get_sam_multipliers(prod_code, age):
             return 5, 25
 
 
-st.title("🛡️BẢNG MINH HỌA UL")
+st.title("🛡️MINH HỌA DÒNG TIỀN ")
 st.caption(
     "Công cụ hỗ trợ tư vấn & tính toán quyền lợi sản phẩm MAP Life Hạnh Phúc (UL2) & Bình An (UL3) kèm Sản phẩm bổ trợ"
 )
@@ -73,7 +73,7 @@ st.caption(
 # ---------------------------------------------------------
 # 2. THANH THÔNG TIN BÊN (SIDEBAR)
 # ---------------------------------------------------------
-st.sidebar.header("📋 THÔNG TIN ")
+st.sidebar.header("📋 THÔNG TIN")
 
 product_choice = st.sidebar.selectbox(
     "Lựa chọn sản phẩm bảo hiểm:",
@@ -132,7 +132,6 @@ st.sidebar.info(
 st.sidebar.markdown("---")
 st.sidebar.subheader("💰 Thông tin Hợp đồng chính")
 
-# Cập nhật số phí cơ bản mặc định theo sản phẩm khi đổi sản phẩm
 if (
     "prev_prod_tp" not in st.session_state
     or st.session_state.prev_prod_tp != prod_code
@@ -149,7 +148,6 @@ tp_in_millions = st.sidebar.number_input(
 )
 target_premium = int(tp_in_millions * 1_000_000)
 
-# Ràng buộc cảnh báo nếu số phí thấp hơn mức tối thiểu
 if target_premium < abs_min_tp:
     st.sidebar.error(
         f"⚠️ **Cảnh báo:** Phí bảo hiểm tối thiểu cho {prod_name} là"
@@ -166,13 +164,11 @@ prem_term = st.sidebar.slider(
     key="term_slider",
 )
 
-# Tính toán hạn mức STBH động (Min/Max)
 sam_min_mult, sam_max_mult = get_sam_multipliers(prod_code, entry_age)
 dynamic_min_sa = max(abs_min_sa, target_premium * sam_min_mult)
 dynamic_max_sa = target_premium * sam_max_mult
 min_sa_m = float(dynamic_min_sa / 1_000_000)
 
-# Cấu hình để STBH luôn nhận giá trị Min làm mặc định khi thay đổi sản phẩm, phí hoặc tuổi
 config_changed = (
     st.session_state.get("prev_prod") != prod_code
     or st.session_state.get("prev_tp") != target_premium
@@ -203,30 +199,30 @@ st.sidebar.caption(
 
 if sum_assured < dynamic_min_sa or sum_assured > dynamic_max_sa:
     st.sidebar.warning(
-        f"⚠️ STBH nằm ngoài giới hạn ({fmt_vnd(dynamic_min_sa)} - {fmt_vnd(dynamic_max_sa)})"
+        f"⚠️ STBH vượt ngoài dải thẩm định động theo phí ({fmt_vnd(dynamic_min_sa)} - {fmt_vnd(dynamic_max_sa)})"
     )
 
 # ---------------------------------------------------------
-# CẤU HÌNH SẢN PHẨM BỔ TRỢ (RIDERS)
+# CẤU HÌNH SẢN PHẨM BỔ TRỢ (RIDERS) - MẶC ĐỊNH CÓ SẴN KHI TICK
 # ---------------------------------------------------------
 st.sidebar.markdown("---")
 st.sidebar.subheader("🛡️ Sản phẩm bổ trợ (Riders)")
 
-# 1. CIR1 (Giới hạn tối đa 400 triệu, mặc định 0)
+# 1. CIR1 (Tối đa 400 triệu, mặc định 100 triệu khi chọn)
 use_cir1 = st.sidebar.checkbox("Bảo hiểm Bệnh hiểm nghèo (CIR1)", value=False)
 sa_cir1 = 0
 if use_cir1:
     sa_cir1_m = st.sidebar.number_input(
         "STBH CIR1 (Triệu VNĐ - Tối đa 400tr):",
-        min_value=0.0,
+        min_value=100.0,
         max_value=400.0,
-        value=0.0,
-        step=10.0,
+        value=100.0,
+        step=100.0,
         format="%g",
     )
     sa_cir1 = int(sa_cir1_m * 1_000_000)
 
-# 2. CIR2 (Giới hạn tối đa 500 triệu, mặc định 0)
+# 2. CIR2 (Tối đa 500 triệu, mặc định 200 triệu khi chọn)
 use_cir2 = st.sidebar.checkbox(
     "Bảo hiểm Bệnh hiểm nghèo nâng cao (CIR2)", value=False
 )
@@ -234,24 +230,24 @@ sa_cir2 = 0
 if use_cir2:
     sa_cir2_m = st.sidebar.number_input(
         "STBH CIR2 (Triệu VNĐ - Tối đa 500tr):",
-        min_value=0.0,
+        min_value=100.0,
         max_value=500.0,
-        value=0.0,
-        step=10.0,
+        value=200.0,
+        step=100.0,
         format="%g",
     )
     sa_cir2 = int(sa_cir2_m * 1_000_000)
 
-# 3. Tai nạn (Giới hạn tối đa 500 triệu, mặc định 0)
+# 3. Tai nạn (Tối đa 500 triệu, mặc định 200 triệu khi chọn)
 use_pa = st.sidebar.checkbox("Bảo hiểm Tai nạn cá nhân (PA)", value=False)
 sa_pa = 0
 if use_pa:
     sa_pa_m = st.sidebar.number_input(
         "STBH Tai nạn (Triệu VNĐ - Tối đa 500tr):",
-        min_value=0.0,
+        min_value=100.0,
         max_value=500.0,
-        value=0.0,
-        step=10.0,
+        value=200.0,
+        step=100.0,
         format="%g",
     )
     sa_pa = int(sa_pa_m * 1_000_000)
@@ -485,7 +481,7 @@ else:
 
 col_title, col_btn = st.columns([3, 1])
 with col_title:
-    st.subheader("📋 Bảng Dòng Chi Tiết (Kèm Sản Phẩm Bổ Trợ)")
+    st.subheader("📋 Bảng Dòng Tiền Chi Tiết (Kèm Sản Phẩm Bổ Trợ)")
 with col_btn:
     pdf_buffer = create_pdf_report(
         fullname,
