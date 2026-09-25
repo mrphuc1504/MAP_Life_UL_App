@@ -246,7 +246,7 @@ if use_cir2:
     )
     sa_cir2 = int(sa_cir2_m * 1_000_000)
 
-use_pa = st.checkbox("Tai nạn cá nhân (PA)", value=False)
+use_pa = st.checkbox("Bảo hiểm Hỗ trợ TTVV do Tai nạn (PDD1)", value=False)
 sa_pa = 0
 if use_pa:
     sa_pa_m = st.number_input(
@@ -559,7 +559,7 @@ pdf_buffer = create_pdf_report(
     sa_pa,
 )
 st.download_button(
-    label="📥 Tải Bảng Minh Họa (PDF)",
+    label="📥 Tải Minh Họa Nháp (PDF)",
     data=pdf_buffer,
     file_name=f"Minh_Hoa_Dich_Vu_{prod_code}_{fullname.replace(' ', '_')}.pdf",
     mime="application/pdf",
