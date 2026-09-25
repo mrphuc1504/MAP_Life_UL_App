@@ -6,16 +6,13 @@ from reportlab.pdfgen import canvas
 import streamlit as st
 
 # ---------------------------------------------------------
-# 1. CẤU HÌNH TRANG WEB & TỐI ƯU GIAO DIỆN DI ĐỘNG
+# 1. CẤU HÌNH GIAO DIỆN DI ĐỘNG (MOBILE-FIRST) & ẨN HỆ THỐNG
 # ---------------------------------------------------------
 st.set_page_config(
-    page_title="MAP Life UL Illustration Tool",
-    page_icon="🛡️",
-    layout="wide",
-    initial_sidebar_state="auto",
+    page_title="MAP Life UL Mobile", page_icon="🛡️", layout="centered"
 )
 
-hide_ui_style = """
+mobile_css = """
     <style>
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
@@ -27,16 +24,17 @@ hide_ui_style = """
     .viewerBadge_container__1QSob {display: none !important;}
     iframe[src*="streamlit.app"] {display: none !important;}
     button[kind="header"] {display: none !important;}
-    
-    /* Ép các tiêu đề sidebar không bị xuống dòng ngắt quãng */
-    .sidebar .stMarkdown h3 {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+
+    /* Tối ưu font và khoảng cách trên di động */
+    body {
+        font-size: 16px;
+    }
+    .stNumberInput, .stSelectbox, .stRadio, .stSlider {
+        margin-bottom: 10px;
     }
     </style>
 """
-st.markdown(hide_ui_style, unsafe_allow_html=True)
+st.markdown(mobile_css, unsafe_allow_html=True)
 
 
 def fmt_vnd(amount):
@@ -72,19 +70,17 @@ def get_sam_multipliers(prod_code, age):
             return 5, 25
 
 
-st.title("🛡️ BẢNG MINH HỌA DÒNG TIỀN MAP LIFE UL")
-st.caption(
-    "Công cụ hỗ trợ tư vấn & tính toán quyền lợi sản phẩm MAP Life Hạnh Phúc (UL2) & Bình An (UL3) kèm Sản phẩm bổ trợ"
-)
+st.title("🛡️ MAP Life UL Mobile")
+st.caption("Công cụ minh họa dòng tiền & tư vấn bảo hiểm tối ưu trên di động")
 
 # ---------------------------------------------------------
-# 2. THANH THÔNG TIN BÊN (SIDEBAR)
+# 2. KHU VỰC NHẬP LIỆU TRỰC TIẾP TRÊN MÀN HÌNH CHÍNH (MOBILE LAYOUT)
 # ---------------------------------------------------------
-st.sidebar.header("📋 CẤU HÌNH TƯ VẤN")
-
-product_choice = st.sidebar.selectbox(
-    "Lựa chọn sản phẩm bảo hiểm:",
+st.markdown("### 📋 1. Chọn sản phẩm bảo hiểm")
+product_choice = st.selectbox(
+    "Sản phẩm:",
     ["MAP Life Hạnh Phúc (UL2)", "MAP Life Bình An (UL3)"],
+    label_visibility="collapsed",
     key="prod_choice",
 )
 
@@ -103,13 +99,12 @@ else:
     abs_min_tp = 8_000_000
     abs_min_sa = 200_000_000
 
-st.sidebar.markdown("---")
-st.sidebar.subheader("👤 Thông tin Khách hàng")
+st.markdown("---")
+st.markdown("### 👤 2. Thông tin Khách hàng")
+fullname = st.text_input("Họ và tên NĐBH", "Nguyễn Văn Đạt")
+gender = st.radio("Giới tính", ["Nam", "Nữ"], horizontal=True)
 
-fullname = st.sidebar.text_input("Họ và tên NĐBH", "Nguyễn Văn Đạt")
-gender = st.sidebar.radio("Giới tính", ["Nam", "Nữ"], horizontal=True)
-
-col_d, col_m, col_y = st.sidebar.columns(3)
+col_d, col_m, col_y = st.columns(3)
 with col_y:
     birth_year = col_y.selectbox(
         "Năm sinh", range(1950, 2027), index=40, key="b_year"
@@ -132,12 +127,13 @@ try:
 except ValueError:
     entry_age = today.year - birth_year
 
-st.sidebar.info(
-    f"💡 Ngày sinh: **{birth_day:02d}/{birth_month:02d}/{birth_year}** | Tuổi tham gia: **{entry_age} tuổi**"
+st.info(
+    f"💡 Ngày sinh: **{birth_day:02d}/{birth_month:02d}/{birth_year}** | Tuổi:"
+    f" **{entry_age} tuổi**"
 )
 
-st.sidebar.markdown("---")
-st.sidebar.subheader("💰 Thông tin Hợp đồng")
+st.markdown("---")
+st.markdown("### 💰 3. Thông tin Hợp đồng chính")
 
 if (
     "prev_prod_tp" not in st.session_state
@@ -146,7 +142,7 @@ if (
     st.session_state.tp_input = default_tp_m
     st.session_state.prev_prod_tp = prod_code
 
-tp_in_millions = st.sidebar.number_input(
+tp_in_millions = st.number_input(
     "Phí cơ bản hàng năm (Triệu VNĐ):",
     min_value=float(abs_min_tp / 1_000_000),
     step=1.0,
@@ -156,15 +152,15 @@ tp_in_millions = st.sidebar.number_input(
 target_premium = int(tp_in_millions * 1_000_000)
 
 if target_premium < abs_min_tp:
-    st.sidebar.error(
+    st.error(
         f"⚠️ **Cảnh báo:** Phí tối thiểu cho {prod_name} là"
         f" **{fmt_vnd(abs_min_tp)}**!"
     )
 else:
-    st.sidebar.success(f"👉 **Phí đóng:** `{fmt_vnd(target_premium)}`")
+    st.success(f"👉 **Phí đóng:** `{fmt_vnd(target_premium)}`")
 
-prem_term = st.sidebar.slider(
-    "Thời hạn đóng phí (năm):",
+prem_term = st.slider(
+    "Thời hạn đóng phí dự kiến (năm):",
     min_value=min_term,
     max_value=max_term,
     value=10,
@@ -188,38 +184,37 @@ if config_changed or "sa_input" not in st.session_state:
     st.session_state.prev_tp = target_premium
     st.session_state.prev_age = entry_age
 
-sa_in_millions = st.sidebar.number_input(
-    "Số Tiền Bảo Hiểm (Triệu VNĐ):",
+sa_in_millions = st.number_input(
+    "Số Tiền Bảo Hiểm (STBH) chính (Triệu VNĐ):",
     min_value=0.0,
     step=10.0,
     format="%g",
     key="sa_input",
 )
 sum_assured = int(sa_in_millions * 1_000_000)
-st.sidebar.success(f"👉 **STBH chính:** `{fmt_vnd(sum_assured)}`")
+st.success(f"👉 **STBH chính:** `{fmt_vnd(sum_assured)}`")
 
-st.sidebar.caption(
+st.caption(
     f"📌 *Hạn mức STBH động ({entry_age} tuổi, phí {fmt_vnd(target_premium)}):*\n"
     f"- Tối thiểu (Min): **{fmt_vnd(dynamic_min_sa)}**\n"
     f"- Tối đa (Max): **{fmt_vnd(dynamic_max_sa)}**"
 )
 
 if sum_assured < dynamic_min_sa or sum_assured > dynamic_max_sa:
-    st.sidebar.warning(
+    st.warning(
         f"⚠️ STBH ngoài dải thẩm định ({fmt_vnd(dynamic_min_sa)} - {fmt_vnd(dynamic_max_sa)})"
     )
 
 # ---------------------------------------------------------
-# CẤU HÌNH SẢN PHẨM BỔ TRỢ (RIDERS)
+# SẢN PHẨM BỔ TRỢ (RIDERS)
 # ---------------------------------------------------------
-st.sidebar.markdown("---")
-st.sidebar.subheader("🛡️ Sản phẩm bổ trợ (Riders)")
+st.markdown("---")
+st.markdown("### 🛡️ 4. Sản phẩm bổ trợ (Riders)")
 
-# 1. CIR1 (Tối đa 400 triệu, mặc định 0)
-use_cir1 = st.sidebar.checkbox("Bệnh hiểm nghèo (CIR1)", value=False)
+use_cir1 = st.checkbox("Bệnh hiểm nghèo (CIR1)", value=False)
 sa_cir1 = 0
 if use_cir1:
-    sa_cir1_m = st.sidebar.number_input(
+    sa_cir1_m = st.number_input(
         "STBH CIR1 (Tối đa 400tr):",
         min_value=0.0,
         max_value=400.0,
@@ -229,11 +224,10 @@ if use_cir1:
     )
     sa_cir1 = int(sa_cir1_m * 1_000_000)
 
-# 2. CIR2 (Tối đa 500 triệu, mặc định 0)
-use_cir2 = st.sidebar.checkbox("Bệnh hiểm nghèo nâng cao (CIR2)", value=False)
+use_cir2 = st.checkbox("Bệnh hiểm nghèo nâng cao (CIR2)", value=False)
 sa_cir2 = 0
 if use_cir2:
-    sa_cir2_m = st.sidebar.number_input(
+    sa_cir2_m = st.number_input(
         "STBH CIR2 (Tối đa 500tr):",
         min_value=0.0,
         max_value=500.0,
@@ -243,11 +237,10 @@ if use_cir2:
     )
     sa_cir2 = int(sa_cir2_m * 1_000_000)
 
-# 3. Tai nạn (Tối đa 500 triệu, mặc định 0)
-use_pa = st.sidebar.checkbox("Tai nạn cá nhân (PA)", value=False)
+use_pa = st.checkbox("Tai nạn cá nhân (PA)", value=False)
 sa_pa = 0
 if use_pa:
-    sa_pa_m = st.sidebar.number_input(
+    sa_pa_m = st.number_input(
         "STBH Tai nạn (Tối đa 500tr):",
         min_value=0.0,
         max_value=500.0,
@@ -259,7 +252,7 @@ if use_pa:
 
 
 # ---------------------------------------------------------
-# 3. ENGINE TÍNH TOÁN DÒNG TIỀN (BAO GỒM CẢ RIDERS)
+# 3. ENGINE TÍNH TOÁN DÒNG TIỀN
 # ---------------------------------------------------------
 def generate_ul_projection(
     prod_code,
@@ -356,7 +349,7 @@ def generate_ul_projection(
 
 
 # ---------------------------------------------------------
-# 4. HÀM TẠO FILE PDF (TIẾNG VIỆT KHÔNG DẤU CHUẨN)
+# 4. HÀM TẠO FILE PDF
 # ---------------------------------------------------------
 def create_pdf_report(
     fullname,
@@ -443,8 +436,11 @@ def create_pdf_report(
 
 
 # ---------------------------------------------------------
-# 5. HIỂN THỊ GIAO DIỆN WEB
+# 5. HIỂN THỊ KẾT QUẢ VÀ NÚT TẢI PDF
 # ---------------------------------------------------------
+st.markdown("---")
+st.markdown("### 📊 Kết quả Minh họa Dòng tiền")
+
 df_proj = generate_ul_projection(
     prod_code,
     entry_age,
@@ -456,11 +452,10 @@ df_proj = generate_ul_projection(
     sa_pa,
 )
 
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("Sản phẩm", prod_name)
-col2.metric("Số Tiền Bảo Hiểm", fmt_vnd(sum_assured))
-col3.metric("Phí Bảo Hiểm / Năm", fmt_vnd(target_premium))
-col4.metric("Tổng Phí Dự Kiến", fmt_vnd(target_premium * prem_term))
+st.metric("Sản phẩm", prod_name)
+st.metric("STBH chính", fmt_vnd(sum_assured))
+st.metric("Phí đóng hàng năm", fmt_vnd(target_premium))
+st.metric("Tổng phí dự kiến", fmt_vnd(target_premium * prem_term))
 
 st.markdown("---")
 
@@ -475,36 +470,39 @@ if not breakeven_df.empty:
     be_acc_val = fmt_vnd(first_be["Giá Trị Tài Khoản"])
 
     st.success(
-        f"💡 **Điểm nổi bật ({prod_name}):** Ở mức lãi suất giả định 5%/năm, Giá trị tài khoản hợp đồng sẽ **vượt Tổng phí đóng** từ **Năm hợp đồng thứ {be_year}** (lúc khách hàng **{be_age} tuổi**) với số tiền đạt **{be_acc_val}**."
+        f"💡 **Điểm nổi bật ({prod_name}):** Ở mức lãi suất 5%/năm, Giá trị tài"
+        f" khoản sẽ **vượt Tổng phí đóng** từ **Năm thứ {be_year}** (lúc"
+        f" **{be_age} tuổi**) với số tiền đạt **{be_acc_val}**."
     )
 else:
     st.warning(
-        f"💡 **Lưu ý ({prod_name}):** Với mức phí và thời gian đóng phí hiện tại, Giá trị tài khoản chưa vượt Tổng phí đóng trong khoảng thời gian minh họa."
+        f"💡 **Lưu ý ({prod_name}):** Giá trị tài khoản chưa vượt Tổng phí đóng"
+        " trong khoảng thời gian minh họa."
     )
 
-col_title, col_btn = st.columns([3, 1])
-with col_title:
-    st.subheader("📋 Bảng Dòng Tiền Chi Tiết Hợp Đồng (Kèm Sản Phẩm Bổ Trợ)")
-with col_btn:
-    pdf_buffer = create_pdf_report(
-        fullname,
-        prod_name,
-        entry_age,
-        sum_assured,
-        target_premium,
-        prem_term,
-        df_proj,
-        sa_cir1,
-        sa_cir2,
-        sa_pa,
-    )
-    st.download_button(
-        label="📥 Tải Bảng Minh Họa (PDF)",
-        data=pdf_buffer,
-        file_name=f"Minh_Hoa_Dich_Vu_{prod_code}_{fullname.replace(' ', '_')}.pdf",
-        mime="application/pdf",
-        type="primary",
-    )
+pdf_buffer = create_pdf_report(
+    fullname,
+    prod_name,
+    entry_age,
+    sum_assured,
+    target_premium,
+    prem_term,
+    df_proj,
+    sa_cir1,
+    sa_cir2,
+    sa_pa,
+)
+st.download_button(
+    label="📥 Tải Bảng Minh Họa (PDF)",
+    data=pdf_buffer,
+    file_name=f"Minh_Hoa_Dich_Vu_{prod_code}_{fullname.replace(' ', '_')}.pdf",
+    mime="application/pdf",
+    type="primary",
+    use_container_width=True,
+)
+
+st.markdown("---")
+st.subheader("📋 Bảng Chi Tiết Dòng Tiền")
 
 if not df_proj.empty:
     df_display = df_proj.copy().fillna(0)
@@ -532,7 +530,7 @@ if not df_proj.empty:
             "Giá Trị Hoàn Lại",
         ]],
         use_container_width=True,
-        height=550,
+        height=450,
     )
 else:
-    st.warning("⚠️ Không có dữ liệu minh họa. Vui lòng kiểm tra lại Ngày sinh.")
+    st.warning("⚠️ Vui lòng kiểm tra lại thông tin đầu vào.")
