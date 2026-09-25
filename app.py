@@ -12,7 +12,7 @@ import streamlit as st
 # 1. CẤU HÌNH GIAO DIỆN DI ĐỘNG (MOBILE-FIRST) & ẨN HỆ THỐNG
 # ---------------------------------------------------------
 st.set_page_config(
-    page_title="MAPLife UL", page_icon="🛡️", layout="centered"
+    page_title="Tính nhanh UL", page_icon="🛡️", layout="centered"
 )
 
 mobile_css = """
@@ -79,7 +79,7 @@ def get_sam_multipliers(prod_code, age):
             return 5, 25
 
 
-st.title("🛡️ MAPLife UL ")
+st.title("🛡️ Tính nhanh UL")
 st.caption("Công cụ minh họa dòng tiền & tư vấn bảo hiểm tối ưu trên di động")
 
 # ---------------------------------------------------------
@@ -113,17 +113,17 @@ st.markdown("### 👤 2. Thông tin KH")
 fullname = st.text_input("Họ và tên NĐBH", "Lộc Đại Phu")
 gender = st.radio("Giới tính", ["Nam", "Nữ"], horizontal=True)
 
+# Gộp Ngày, Tháng, Năm sinh vào chung 1 hàng ngang
+st.markdown("🗓️ **Ngày tháng năm sinh:**")
 col_d, col_m, col_y = st.columns(3)
-with col_y:
-    birth_year = col_y.selectbox(
-        "Năm sinh", range(1950, 2027), index=40, key="b_year"
-    )
-with col_m:
-    birth_month = col_m.selectbox(
-        "Tháng", range(1, 13), index=0, key="b_month"
-    )
 with col_d:
     birth_day = col_d.selectbox("Ngày", range(1, 32), index=0, key="b_day")
+with col_m:
+    birth_month = col_m.selectbox("Tháng", range(1, 13), index=0, key="b_month")
+with col_y:
+    birth_year = col_y.selectbox(
+        "Năm", range(1950, 2027), index=40, key="b_year"
+    )
 
 today = datetime.now()
 try:
@@ -280,7 +280,6 @@ def generate_ul_projection(
     account_value = 0
     init_fee_rate = {1: 0.50, 2: 0.30, 3: 0.20, 4: 0.20, 5: 0.20}
 
-    # Hệ số giới tính cho phí rủi ro (Nam có rủi ro cao hơn Nữ ~10-15%)
     gender_factor = 1.0 if gender == "Nam" else 0.88
 
     sa_to_tp_ratio = sa / tp if tp > 0 else 0
@@ -295,7 +294,6 @@ def generate_ul_projection(
     for pol_year in range(1, max_years + 1):
         current_age = entry_age + pol_year - 1
 
-        # Phí rủi ro sản phẩm bổ trợ (theo giới tính)
         coi_fee_cir1 = (
             sa_cir1 * (0.0008 + current_age * 0.00005) * gender_factor
             if sa_cir1 > 0
