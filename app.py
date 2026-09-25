@@ -6,14 +6,27 @@ from reportlab.pdfgen import canvas
 import streamlit as st
 
 # ---------------------------------------------------------
-# 1. CẤU HÌNH TRANG WEB
+# 1. CẤU HÌNH TRANG WEB (ÉP HIỂN THỊ THANH MENU BÊN HÔNG)
 # ---------------------------------------------------------
 st.set_page_config(
     page_title="MAP Life UL Illustration Tool",
     page_icon="🛡️",
     layout="wide",
-    initial_sidebar_state="auto",
+    initial_sidebar_state="expanded",  # Ép luôn mở rộng sidebar
 )
+
+# CSS ép hiển thị nút menu trên điện thoại và làm gọn giao diện
+st.markdown(
+    """
+    <style>
+    [data-testid="collapsedControl"] {
+        display: block !important;
+    }
+    </style>
+""",
+    unsafe_allow_html=True,
+)
+
 
 def fmt_vnd(amount):
     return f"{int(amount):,}".replace(",", ".") + " VNĐ"
@@ -21,11 +34,37 @@ def fmt_vnd(amount):
 
 def fmt_vnd_short(amount):
     return f"{int(amount):,}".replace(",", ".")
-st.title("🛡️ BẢNG MINH HỌA BHNT UL MAP LIFE")
+
+
+def get_sam_multipliers(prod_code, age):
+    if prod_code == "UL2":
+        if age <= 30:
+            return 25, 90
+        elif age <= 40:
+            return 20, 75
+        elif age <= 50:
+            return 15, 55
+        elif age <= 60:
+            return 10, 35
+        else:
+            return 5, 20
+    else:  # UL3
+        if age <= 30:
+            return 20, 100
+        elif age <= 40:
+            return 18, 80
+        elif age <= 50:
+            return 15, 60
+        elif age <= 60:
+            return 10, 40
+        else:
+            return 5, 25
+
+
+st.title("🛡️ BẢNG MINH HỌA DÒNG TIỀN MAP LIFE UL")
 st.caption(
     "Công cụ hỗ trợ tư vấn & tính toán quyền lợi sản phẩm MAP Life Hạnh Phúc (UL2) & Bình An (UL3)"
 )
-
 # ---------------------------------------------------------
 # 2. THANH THÔNG TIN BÊN (SIDEBAR)
 # ---------------------------------------------------------
