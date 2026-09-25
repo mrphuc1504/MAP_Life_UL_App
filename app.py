@@ -1,5 +1,6 @@
 from datetime import datetime
 import io
+import os
 import pandas as pd
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -13,7 +14,7 @@ import streamlit as st
 # 1. CẤU HÌNH TRANG WEB
 # ---------------------------------------------------------
 st.set_page_config(
-    page_title="Tính nhanh MAP Life UL",
+    page_title="Tình nhanh UL MAP Life",
     page_icon="🛡️",
     layout="wide",
 )
@@ -72,16 +73,16 @@ def get_sam_multipliers(prod_code, age):
             return 5, 25
 
 
-st.title("🛡️ BẢNG MINH HỌA DÒNG TIỀN ")
+st.title("🛡️ BẢNG MINH HỌA DÒNG TIỀN UL")
 st.caption(
-    "Công cụ hỗ trợ tư vấn & tính toán quyền lợi sản phẩm MAP Life Hạnh Phúc (UL2) & Bình An (UL3)"
+    "Công cụ hỗ trợ tư vấn & tính toán nhanh quyền lợi sản phẩm MAP Life Hạnh Phúc (UL2) & Bình An (UL3)"
 )
 st.markdown("---")
 
 # ---------------------------------------------------------
-# 2. KHU VỰC CẤU HÌNH TRỰC QUAN (HIỂN THỊ NGAY MÀN HÌNH CHÍNH)
+# 2. KHU VỰC CẤU HÌNH TRỰC QUAN (MÀN HÌNH CHÍNH)
 # ---------------------------------------------------------
-st.subheader("📋 Cấu hình thông tin Hợp đồng & Khách hàng")
+st.subheader("📋 Thông tin Sản phẩm & Khách hàng")
 
 with st.container():
     st.markdown('<div class="card-container">', unsafe_allow_html=True)
@@ -114,7 +115,6 @@ with st.container():
 
         fullname = st.text_input("Họ và tên NĐBH", "Nguyễn Văn A")
 
-        # Chọn ngày tháng năm sinh gọn gàng
         st.markdown("**Ngày sinh Người được bảo hiểm:**")
         col_d, col_m, col_y = st.columns(3)
         with col_y:
@@ -265,7 +265,7 @@ def generate_ul_projection(
 
 
 # ---------------------------------------------------------
-# 4. HÀM TẠO FILE PDF (HỖ TRỢ TIẾNG VIỆT & BẢNG THẲNG HÀNG)
+# 4. HÀM TẠO FILE PDF (SỬ DỤNG FONT CALIBRI)
 # ---------------------------------------------------------
 def create_pdf_report(
     fullname, prod_name, entry_age, sum_assured, target_premium, prem_term, df_p
@@ -281,11 +281,20 @@ def create_pdf_report(
     )
     story = []
 
+    # Cấu hình đăng ký font Calibri (Hỗ trợ Unicode tiếng Việt)
     try:
-        pdfmetrics.registerFont(TTFont("DejaVu", "DejaVuSans.ttf"))
-        pdfmetrics.registerFont(TTFont("DejaVu-Bold", "DejaVuSans-Bold.ttf"))
-        font_name = "DejaVu"
-        font_bold = "DejaVu-Bold"
+        # Kiểm tra nếu có sẵn file calibri.ttf trong thư mục dự án
+        if os.path.exists("calibri.ttf") and os.path.exists("calibrib.ttf"):
+            pdfmetrics.registerFont(TTFont("Calibri", "calibri.ttf"))
+            pdfmetrics.registerFont(TTFont("Calibri-Bold", "calibrib.ttf"))
+            font_name = "Calibri"
+            font_bold = "Calibri-Bold"
+        else:
+            # Fallback sang DejaVu nếu chưa có file ttf của Calibri trên thư mục chạy
+            pdfmetrics.registerFont(TTFont("DejaVu", "DejaVuSans.ttf"))
+            pdfmetrics.registerFont(TTFont("DejaVu-Bold", "DejaVuSans-Bold.ttf"))
+            font_name = "DejaVu"
+            font_bold = "DejaVu-Bold"
     except:
         font_name = "Helvetica"
         font_bold = "Helvetica-Bold"
@@ -411,7 +420,7 @@ else:
 
 col_title, col_btn = st.columns([3, 1])
 with col_title:
-    st.subheader("📋 Bảng Dòng Tiền Chi Tiết ")
+    st.subheader("📋 Bảng Dòng Tiền Chi Tiết")
 with col_btn:
     pdf_buffer = create_pdf_report(
         fullname,
