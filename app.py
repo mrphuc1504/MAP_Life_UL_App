@@ -79,7 +79,7 @@ def get_sam_multipliers(prod_code, age):
             return 5, 25
 
 
-st.title("🛡️ MAP Life UL")
+st.title("🛡️ MAP Life UL Mobile")
 st.caption("Công cụ minh họa dòng tiền & tư vấn bảo hiểm tối ưu trên di động")
 
 # ---------------------------------------------------------
@@ -137,8 +137,8 @@ except ValueError:
     entry_age = today.year - birth_year
 
 st.info(
-    f"💡 Ngày sinh: **{birth_day:02d}/{birth_month:02d}/{birth_year}** | Tuổi:"
-    f" **{entry_age} tuổi**"
+    f"💡 Ngày sinh: **{birth_day:02d}/{birth_month:02d}/{birth_year}** | Giới"
+    f" tính: **{gender}** | Tuổi: **{entry_age} tuổi**"
 )
 
 st.markdown("---")
@@ -166,7 +166,7 @@ if target_premium < abs_min_tp:
         f" **{fmt_vnd(abs_min_tp)}**!"
     )
 else:
-    st.success(f"👉 **Phí đóng:** `{fmt_vnd(target_premium)}`")
+    st.success(f"👉 **Phí chính:** `{fmt_vnd(target_premium)}`")
 
 prem_term = st.slider(
     "Thời hạn đóng phí dự kiến (năm):",
@@ -261,11 +261,12 @@ if use_pa:
 
 
 # ---------------------------------------------------------
-# 3. ENGINE TÍNH TOÁN DÒNG TIỀN (CÓ TÍNH PHÍ RỦI RO BỔ TRỢ)
+# 3. ENGINE TÍNH TOÁN DÒNG TIỀN (PHÂN BIỆT GIỚI TÍNH NAM / NỮ)
 # ---------------------------------------------------------
 def generate_ul_projection(
     prod_code,
     entry_age,
+    gender,
     tp,
     prem_term,
     sa,
@@ -279,6 +280,9 @@ def generate_ul_projection(
     account_value = 0
     init_fee_rate = {1: 0.50, 2: 0.30, 3: 0.20, 4: 0.20, 5: 0.20}
 
+    # Hệ số giới tính cho phí rủi ro (Nam có rủi ro cao hơn Nữ ~10-15%)
+    gender_factor = 1.0 if gender == "Nam" else 0.88
+
     sa_to_tp_ratio = sa / tp if tp > 0 else 0
 
     if prod_code == "UL2":
@@ -291,11 +295,35 @@ def generate_ul_projection(
     for pol_year in range(1, max_years + 1):
         current_age = entry_age + pol_year - 1
 
-        yearly_prem = tp if pol_year <= prem_term else 0
+        # Phí rủi ro sản phẩm bổ trợ (theo giới tính)
+        coi_fee_cir1 = (
+            sa_cir1 * (0.0008 + current_age * 0.00005) * gender_factor
+            if sa_cir1 > 0
+            else 0
+        )
+        coi_fee_cir2 = (
+            sa_cir2 * (0.0012 + current_age * 0.00006) * gender_factor
+            if sa_cir2 > 0
+            else 0
+        )
+        coi_fee_pa = (
+            sa_pa * 0.0012 * gender_factor if sa_pa > 0 else 0
+        )
+        total_rider_fee = coi_fee_cir1 + coi_fee_cir2 + coi_fee_pa
+
+        yearly_prem = (
+            (tp + total_rider_fee) if pol_year <= prem_term else 0
+        )
         accumulated_prem += yearly_prem
 
         fee_rate = init_fee_rate.get(pol_year, 0.02)
-        invest_prem = yearly_prem * (1 - fee_rate)
+        base_tp = tp if pol_year <= prem_term else 0
+        invest_prem = (
+            (base_tp * (1 - fee_rate))
+            + total_rider_fee
+            if pol_year <= prem_term
+            else 0
+        )
 
         bonus = 0
         if prod_code == "UL2":
@@ -316,18 +344,9 @@ def generate_ul_projection(
             if pol_year == 10:
                 bonus += tp * special_bonus_rate
 
-        coi_rate_main = 0.0015 + (current_age * 0.0001)
+        coi_rate_main = (0.0015 + (current_age * 0.0001)) * gender_factor
         coi_fee_main = sa * coi_rate_main
 
-        coi_fee_cir1 = (
-            sa_cir1 * (0.0008 + current_age * 0.00005) if sa_cir1 > 0 else 0
-        )
-        coi_fee_cir2 = (
-            sa_cir2 * (0.0012 + current_age * 0.00006) if sa_cir2 > 0 else 0
-        )
-        coi_fee_pa = sa_pa * 0.0012 if sa_pa > 0 else 0
-
-        total_rider_fee = coi_fee_cir1 + coi_fee_cir2 + coi_fee_pa
         total_coi_fee = coi_fee_main + total_rider_fee
 
         account_value = (
@@ -348,7 +367,6 @@ def generate_ul_projection(
             "Năm/Tuổi": f"{pol_year}/{current_age}",
             "Phí Đóng Dự Kiến": yearly_prem,
             "Tổng Phí Lũy Kế": accumulated_prem,
-            "Phí Bổ Trợ": total_rider_fee,
             "Thưởng Gắn Bó": bonus,
             "Quyền Lợi Tử Vong": death_benefit,
             "Giá Trị Tài Khoản": account_value,
@@ -358,20 +376,30 @@ def generate_ul_projection(
     return pd.DataFrame(records)
 
 
-def get_rider_fee_year1(age, sa_cir1, sa_cir2, sa_pa):
-    fee_cir1 = sa_cir1 * (0.0008 + age * 0.00005) if sa_cir1 > 0 else 0
-    fee_cir2 = sa_cir2 * (0.0012 + age * 0.00006) if sa_cir2 > 0 else 0
-    fee_pa = sa_pa * 0.0012 if sa_pa > 0 else 0
+def get_rider_fee_year1(age, gender, sa_cir1, sa_cir2, sa_pa):
+    gender_factor = 1.0 if gender == "Nam" else 0.88
+    fee_cir1 = (
+        sa_cir1 * (0.0008 + age * 0.00005) * gender_factor
+        if sa_cir1 > 0
+        else 0
+    )
+    fee_cir2 = (
+        sa_cir2 * (0.0012 + age * 0.00006) * gender_factor
+        if sa_cir2 > 0
+        else 0
+    )
+    fee_pa = sa_pa * 0.0012 * gender_factor if sa_pa > 0 else 0
     return fee_cir1, fee_cir2, fee_pa
 
 
 # ---------------------------------------------------------
-# 4. HÀM TẠO FILE PDF (CÓ CỘT PHÍ BỔ TRỢ & KHÔNG DẤU)
+# 4. HÀM TẠO FILE PDF (CÓ PHÂN BIỆT GIỚI TÍNH & KHÔNG DẤU)
 # ---------------------------------------------------------
 def create_pdf_report(
     fullname,
     prod_name,
     entry_age,
+    gender,
     sum_assured,
     target_premium,
     prem_term,
@@ -384,8 +412,8 @@ def create_pdf_report(
     doc = SimpleDocTemplate(
         buffer,
         pagesize=A4,
-        rightMargin=20,
-        leftMargin=20,
+        rightMargin=25,
+        leftMargin=25,
         topMargin=30,
         bottomMargin=30,
     )
@@ -416,14 +444,15 @@ def create_pdf_report(
 
     safe_name = remove_accents(fullname)
     safe_prod = remove_accents(prod_name)
+    safe_gender = remove_accents(gender)
 
     info_html = f"""
     <b>San pham:</b> {safe_prod}<br/>
-    <b>Khach hang:</b> {safe_name} | <b>Tuoi:</b> {entry_age}<br/>
+    <b>Khach hang:</b> {safe_name} | <b>Gioi tinh:</b> {safe_gender} | <b>Tuoi:</b> {entry_age}<br/>
     <b>STBH chinh:</b> {fmt_vnd(sum_assured)} | <b>Phi co ban:</b> {fmt_vnd(target_premium)}/nam ({prem_term} nam)
     """
 
-    f1, f2, f3 = get_rider_fee_year1(entry_age, sa_cir1, sa_cir2, sa_pa)
+    f1, f2, f3 = get_rider_fee_year1(entry_age, gender, sa_cir1, sa_cir2, sa_pa)
     rider_parts = []
     if sa_cir1 > 0:
         rider_parts.append(
@@ -449,7 +478,7 @@ def create_pdf_report(
     table_data = [[
         "Nam/Tuoi",
         "Phi Dong",
-        "Phi Bo Tro",
+        "Tong Phi",
         "Thuong",
         "Tu Vong",
         "Gia Tri TK",
@@ -460,16 +489,15 @@ def create_pdf_report(
         table_data.append([
             str(row["Năm/Tuổi"]),
             fmt_vnd_short(row["Phí Đóng Dự Kiến"]),
-            fmt_vnd_short(row["Phí Bổ Trợ"]),
+            fmt_vnd_short(row["Tổng Phí Lũy Kế"]),
             fmt_vnd_short(row["Thưởng Gắn Bó"]),
             fmt_vnd_short(row["Quyền Lợi Tử Vong"]),
             fmt_vnd_short(row["Giá Trị Tài Khoản"]),
             fmt_vnd_short(row["Giá Trị Hoàn Lại"]),
         ])
 
-    # Tổng chiều rộng trang A4 là ~595pt, trừ lề 40pt còn lại 555pt vừa khít 7 cột
     t = Table(
-        table_data, colWidths=[55, 75, 75, 60, 95, 100, 95], repeatRows=1
+        table_data, colWidths=[55, 75, 75, 60, 90, 100, 90], repeatRows=1
     )
     t.setStyle(
         TableStyle([
@@ -510,6 +538,7 @@ st.markdown("### 📊 Tóm tắt Quyền lợi")
 df_proj = generate_ul_projection(
     prod_code,
     entry_age,
+    gender,
     target_premium,
     prem_term,
     sum_assured,
@@ -518,18 +547,31 @@ df_proj = generate_ul_projection(
     sa_pa,
 )
 
+f1, f2, f3 = get_rider_fee_year1(entry_age, gender, sa_cir1, sa_cir2, sa_pa)
+total_rider_year1 = f1 + f2 + f3
+
 col_res1, col_res2 = st.columns(2)
 with col_res1:
     st.markdown(f"**Sản phẩm:** `{prod_name}`")
     st.markdown(f"**STBH chính:** `{fmt_vnd_short(sum_assured)} VNĐ`")
 with col_res2:
-    st.markdown(f"**Phí hàng năm:** `{fmt_vnd_short(target_premium)} VNĐ`")
-    st.markdown(
-        f"**Tổng phí ({prem_term} năm):**"
-        f" `{fmt_vnd_short(target_premium * prem_term)} VNĐ`"
-    )
+    st.markdown(f"**Phí cơ bản:** `{fmt_vnd_short(target_premium)} VNĐ`")
+    if total_rider_year1 > 0:
+        st.markdown(
+            f"**Phí đóng năm 1 (Đã + Bổ trợ):**"
+            f" `{fmt_vnd_short(target_premium + total_rider_year1)} VNĐ`"
+        )
+    else:
+        st.markdown(
+            f"**Phí hàng năm:** `{fmt_vnd_short(target_premium)} VNĐ`"
+        )
 
-f1, f2, f3 = get_rider_fee_year1(entry_age, sa_cir1, sa_cir2, sa_pa)
+total_actual_prem = df_proj["Phí Đóng Dự Kiến"].sum()
+st.markdown(
+    f"**Tổng phí đóng ({prem_term} năm):**"
+    f" `{fmt_vnd_short(total_actual_prem)} VNĐ`"
+)
+
 riders_summary = []
 if sa_cir1 > 0:
     riders_summary.append(
@@ -548,7 +590,7 @@ if sa_pa > 0:
     )
 
 if riders_summary:
-    st.markdown("🛡️ **Sản phẩm bổ trợ & Phí rủi ro năm 1:**")
+    st.markdown(f"🛡️ **Sản phẩm bổ trợ & Phí rủi ro năm 1 ({gender}):**")
     for r in riders_summary:
         st.markdown(f"- {r}")
 else:
@@ -577,6 +619,7 @@ pdf_buffer = create_pdf_report(
     fullname,
     prod_name,
     entry_age,
+    gender,
     sum_assured,
     target_premium,
     prem_term,
@@ -602,7 +645,6 @@ if not df_proj.empty:
     money_cols = [
         "Phí Đóng Dự Kiến",
         "Tổng Phí Lũy Kế",
-        "Phí Bổ Trợ",
         "Thưởng Gắn Bó",
         "Quyền Lợi Tử Vong",
         "Giá Trị Tài Khoản",
@@ -616,7 +658,7 @@ if not df_proj.empty:
         df_display[[
             "Năm/Tuổi",
             "Phí Đóng Dự Kiến",
-            "Phí Bổ Trợ",
+            "Tổng Phí Lũy Kế",
             "Thưởng Gắn Bó",
             "Quyền Lợi Tử Vong",
             "Giá Trị Tài Khoản",
