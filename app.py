@@ -1,15 +1,19 @@
 from datetime import datetime
 import io
 import pandas as pd
+from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 import streamlit as st
 
 # ---------------------------------------------------------
 # 1. CẤU HÌNH TRANG WEB
 # ---------------------------------------------------------
 st.set_page_config(
-    page_title="Tính nhanh MAP Life UL ",
+    page_title="Tình nhanh MAP Life UL",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="auto",  # Giữ nguyên tính năng ẩn/hiện linh hoạt của Streamlit
@@ -74,7 +78,7 @@ def get_sam_multipliers(prod_code, age):
             return 5, 25
 
 
-st.title("🛡️ BẢNG MINH HỌA MAPLIFE UL")
+st.title("🛡️ BẢNG MINH HỌA MAP LIFE UL")
 st.caption(
     "Công cụ hỗ trợ tư vấn & tính toán quyền lợi sản phẩm MAP Life Hạnh Phúc (UL2) & Bình An (UL3)"
 )
@@ -279,63 +283,113 @@ def generate_ul_projection(
 
 
 # ---------------------------------------------------------
-# 4. HÀM TẠO FILE PDF
+# 4. HÀM TẠO FILE PDF (HỖ TRỢ TIẾNG VIỆT & BẢNG THẲNG HÀNG)
 # ---------------------------------------------------------
 def create_pdf_report(
     fullname, prod_name, entry_age, sum_assured, target_premium, prem_term, df_p
 ):
     buffer = io.BytesIO()
-    c = canvas.Canvas(buffer, pagesize=A4)
-    width, height = A4
-
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(50, height - 40, "BẢNG MINH HỌA QUYỀN LỢI BẢO HIỂM")
-    c.setFont("Helvetica-Bold", 12)
-    c.setFillColorRGB(0, 0.3, 0.6)
-    c.drawString(50, height - 60, f"Sản phẩm: {prod_name}")
-
-    c.setFont("Helvetica", 10)
-    c.setFillColorRGB(0, 0, 0)
-    c.drawString(
-        50, height - 85, f"Khách hàng: {fullname} | Tuổi tham gia: {entry_age}"
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=30,
+        leftMargin=30,
+        topMargin=30,
+        bottomMargin=30,
     )
-    c.drawString(
-        50,
-        height - 100,
-        f"STBH: {fmt_vnd(sum_assured)} | Phí cơ bản: {fmt_vnd(target_premium)}/năm ({prem_term} năm)",
+    story = []
+
+    try:
+        pdfmetrics.registerFont(TTFont("DejaVu", "DejaVuSans.ttf"))
+        pdfmetrics.registerFont(TTFont("DejaVu-Bold", "DejaVuSans-Bold.ttf"))
+        font_name = "DejaVu"
+        font_bold = "DejaVu-Bold"
+    except:
+        font_name = "Helvetica"
+        font_bold = "Helvetica-Bold"
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        "TitleStyle",
+        parent=styles["Heading1"],
+        fontName=font_bold,
+        fontSize=14,
+        textColor=colors.HexColor("#004d99"),
+        spaceAfter=6,
+    )
+    normal_style = ParagraphStyle(
+        "NormalStyle",
+        parent=styles["Normal"],
+        fontName=font_name,
+        fontSize=9,
+        textColor=colors.HexColor("#333333"),
+    )
+    bold_style = ParagraphStyle(
+        "BoldStyle",
+        parent=styles["Normal"],
+        fontName=font_bold,
+        fontSize=9,
+        textColor=colors.HexColor("#000000"),
     )
 
-    c.setFont("Helvetica-Bold", 9)
-    y_start = height - 130
-    c.drawString(
-        50,
-        y_start,
-        "Nam/Tuoi      Phi Dong      Tong Phi      Thuong      Tu Vong      Gia Tri TK      Hoan Lai",
-    )
-    c.line(50, y_start - 5, width - 50, y_start - 5)
-
-    c.setFont("Helvetica", 8)
-    y = y_start - 20
-
-    for index, row in df_p.iterrows():
-        if y < 50:
-            c.showPage()
-            c.setFont("Helvetica", 8)
-            y = height - 50
-
-        line_str = (
-            f"{row['Năm/Tuổi']:<12} "
-            f"{fmt_vnd_short(row['Phí Đóng Dự Kiến']):<13} "
-            f"{fmt_vnd_short(row['Tổng Phí Lũy Kế']):<13} "
-            f"{fmt_vnd_short(row['Thưởng Gắn Bó']):<11} "
-            f"{fmt_vnd_short(row['Quyền Lợi Tử Vong']):<12} "
-            f"{fmt_vnd_short(row['Giá Trị Tài Khoản']):<15} "
-            f"{fmt_vnd_short(row['Giá Trị Hoàn Lại'])}"
+    story.append(Paragraph("BẢNG MINH HỌA QUYỀN LỢI BẢO HIỂM", title_style))
+    story.append(Paragraph(f"<b>Sản phẩm:</b> {prod_name}", normal_style))
+    story.append(
+        Paragraph(
+            f"<b>Khách hàng:</b> {fullname} | <b>Tuổi tham gia:</b> {entry_age}",
+            normal_style,
         )
-        c.drawString(50, y, line_str)
-        y -= 15
+    )
+    story.append(
+        Paragraph(
+            f"<b>STBH:</b> {fmt_vnd(sum_assured)} | <b>Phí cơ bản:</b> {fmt_vnd(target_premium)}/năm ({prem_term} năm)",
+            normal_style,
+        )
+    )
+    story.append(Spacer(1, 10))
 
-    c.save()
+    table_data = [[
+        Paragraph("<b>Năm/Tuổi</b>", bold_style),
+        Paragraph("<b>Phí Đóng</b>", bold_style),
+        Paragraph("<b>Tổng Phí</b>", bold_style),
+        Paragraph("<b>Thưởng</b>", bold_style),
+        Paragraph("<b>Tử Vong</b>", bold_style),
+        Paragraph("<b>Giá Trị TK</b>", bold_style),
+        Paragraph("<b>Hoàn Lại</b>", bold_style),
+    ]]
+
+    for _, row in df_p.iterrows():
+        table_data.append([
+            Paragraph(str(row["Năm/Tuổi"]), normal_style),
+            Paragraph(fmt_vnd_short(row["Phí Đóng Dự Kiến"]), normal_style),
+            Paragraph(fmt_vnd_short(row["Tổng Phí Lũy Kế"]), normal_style),
+            Paragraph(fmt_vnd_short(row["Thưởng Gắn Bó"]), normal_style),
+            Paragraph(fmt_vnd_short(row["Quyền Lợi Tử Vong"]), normal_style),
+            Paragraph(fmt_vnd_short(row["Giá Trị Tài Khoản"]), normal_style),
+            Paragraph(fmt_vnd_short(row["Giá Trị Hoàn Lại"]), normal_style),
+        ])
+
+    col_widths = [55, 75, 75, 65, 80, 85, 85]
+    pdf_table = Table(table_data, colWidths=col_widths, repeatRows=1)
+    pdf_table.setStyle(
+        TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#e6f2ff")),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("BOTTOMPADDING", (0, 0), (-1, 0), 6),
+            ("TOPPADDING", (0, 0), (-1, 0), 6),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#cccccc")),
+            (
+                "ROWBACKGROUNDS",
+                (0, 1),
+                (-1, -1),
+                [colors.white, colors.HexColor("#f9f9f9")],
+            ),
+        ])
+    )
+
+    story.append(pdf_table)
+    doc.build(story)
     buffer.seek(0)
     return buffer
 
