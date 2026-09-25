@@ -73,7 +73,7 @@ def get_sam_multipliers(prod_code, age):
             return 5, 25
 
 
-st.title("🛡️ BẢNG MINH HỌA DÒNG TIỀN UL")
+st.title("🛡️TÍNH NHANH UL")
 st.caption(
     "Công cụ hỗ trợ tư vấn & tính toán nhanh quyền lợi sản phẩm MAP Life Hạnh Phúc (UL2) & Bình An (UL3)"
 )
