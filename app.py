@@ -6,10 +6,10 @@ from reportlab.pdfgen import canvas
 import streamlit as st
 
 # ---------------------------------------------------------
-# 1. CẤU HÌNH TRANG WEB & TỐI ƯU GIAO DIỆN DI ĐỘNG
+# 1. CẤU HÌNH TRANG WEB & ẨN GIAO DIỆN HỆ THỐNG
 # ---------------------------------------------------------
 st.set_page_config(
-    page_title="Tính nhanh UL",
+    page_title="Tính nhanh UL2,3",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="auto",
@@ -19,11 +19,14 @@ hide_ui_style = """
     <style>
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
+    header {visibility: hidden;}
     .stDeployButton {display:none;}
+    [data-testid="stToolbar"] {display: none !important; height: 0px !important; visibility: hidden !important;}
     [data-testid="stDecoration"] {visibility: hidden !important;}
     [data-testid="stStatusWidget"] {visibility: hidden !important;}
     .viewerBadge_container__1QSob {display: none !important;}
     iframe[src*="streamlit.app"] {display: none !important;}
+    button[kind="header"] {display: none !important;}
     </style>
 """
 st.markdown(hide_ui_style, unsafe_allow_html=True)
@@ -62,9 +65,9 @@ def get_sam_multipliers(prod_code, age):
             return 5, 25
 
 
-st.title("🛡️TÍNH NHANH UL")
+st.title("🛡️BẢNG MINH HỌA UL")
 st.caption(
-    "Công cụ hỗ trợ tư vấn & tính toán quyền lợi sản phẩm MAP Life Hạnh Phúc (UL2) & Bình An (UL3)"
+    "Công cụ hỗ trợ tư vấn & tính toán quyền lợi sản phẩm MAP Life Hạnh Phúc (UL2) & Bình An (UL3) kèm Sản phẩm bổ trợ"
 )
 
 # ---------------------------------------------------------
@@ -82,17 +85,15 @@ if "UL2" in product_choice:
     prod_code = "UL2"
     prod_name = "MAP Life Hạnh Phúc"
     min_term, max_term = 4, 20
-    default_tp_m = 10
-    default_sa_m = 900
+    default_tp_m = 10.0
     abs_min_tp = 10_000_000
     abs_min_sa = 250_000_000
 else:
     prod_code = "UL3"
     prod_name = "MAP Life Bình An"
     min_term, max_term = 3, 20
-    default_tp_m = 20
-    default_sa_m = 500
-    abs_min_tp = 9_091_000
+    default_tp_m = 8.0
+    abs_min_tp = 8_000_000
     abs_min_sa = 200_000_000
 
 st.sidebar.markdown("---")
@@ -129,22 +130,33 @@ st.sidebar.info(
 )
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("💰 Thông tin Hợp đồng")
+st.sidebar.subheader("💰 Thông tin Hợp đồng chính")
+
+# Cập nhật số phí cơ bản mặc định theo sản phẩm khi đổi sản phẩm
+if (
+    "prev_prod_tp" not in st.session_state
+    or st.session_state.prev_prod_tp != prod_code
+):
+    st.session_state.tp_input = default_tp_m
+    st.session_state.prev_prod_tp = prod_code
 
 tp_in_millions = st.sidebar.number_input(
     "Phí bảo hiểm cơ bản hàng năm (Triệu VNĐ):",
-    min_value=0.0,
-    value=float(default_tp_m),
+    min_value=float(abs_min_tp / 1_000_000),
     step=1.0,
     format="%g",
     key="tp_input",
 )
 target_premium = int(tp_in_millions * 1_000_000)
-st.sidebar.success(f"👉 **Phí đóng:** `{fmt_vnd(target_premium)}`")
 
-sam_min_mult, sam_max_mult = get_sam_multipliers(prod_code, entry_age)
-dynamic_min_sa = max(abs_min_sa, target_premium * sam_min_mult)
-dynamic_max_sa = target_premium * sam_max_mult
+# Ràng buộc cảnh báo nếu số phí thấp hơn mức tối thiểu
+if target_premium < abs_min_tp:
+    st.sidebar.error(
+        f"⚠️ **Cảnh báo:** Phí bảo hiểm tối thiểu cho {prod_name} là"
+        f" **{fmt_vnd(abs_min_tp)}**!"
+    )
+else:
+    st.sidebar.success(f"👉 **Phí đóng:** `{fmt_vnd(target_premium)}`")
 
 prem_term = st.sidebar.slider(
     "Thời hạn đóng phí dự kiến (năm):",
@@ -154,34 +166,110 @@ prem_term = st.sidebar.slider(
     key="term_slider",
 )
 
+# Tính toán hạn mức STBH động (Min/Max)
+sam_min_mult, sam_max_mult = get_sam_multipliers(prod_code, entry_age)
+dynamic_min_sa = max(abs_min_sa, target_premium * sam_min_mult)
+dynamic_max_sa = target_premium * sam_max_mult
+min_sa_m = float(dynamic_min_sa / 1_000_000)
+
+# Cấu hình để STBH luôn nhận giá trị Min làm mặc định khi thay đổi sản phẩm, phí hoặc tuổi
+config_changed = (
+    st.session_state.get("prev_prod") != prod_code
+    or st.session_state.get("prev_tp") != target_premium
+    or st.session_state.get("prev_age") != entry_age
+)
+
+if config_changed or "sa_input" not in st.session_state:
+    st.session_state.sa_input = min_sa_m
+    st.session_state.prev_prod = prod_code
+    st.session_state.prev_tp = target_premium
+    st.session_state.prev_age = entry_age
+
 sa_in_millions = st.sidebar.number_input(
-    "Số Tiền Bảo Hiểm (STBH) (Triệu VNĐ):",
+    "Số Tiền Bảo Hiểm (STBH) chính (Triệu VNĐ):",
     min_value=0.0,
-    value=float(default_sa_m),
     step=10.0,
     format="%g",
     key="sa_input",
 )
 sum_assured = int(sa_in_millions * 1_000_000)
-st.sidebar.success(f"👉 **STBH:** `{fmt_vnd(sum_assured)}`")
+st.sidebar.success(f"👉 **STBH chính:** `{fmt_vnd(sum_assured)}`")
 
 st.sidebar.caption(
     f"📌 *Hạn mức STBH động ({entry_age} tuổi, phí {fmt_vnd(target_premium)}):*\n"
-    f"- Tối thiểu: **{fmt_vnd(dynamic_min_sa)}**\n"
-    f"- Tối đa: **{fmt_vnd(dynamic_max_sa)}**"
+    f"- Tối thiểu (Min): **{fmt_vnd(dynamic_min_sa)}**\n"
+    f"- Tối đa (Max): **{fmt_vnd(dynamic_max_sa)}**"
 )
 
 if sum_assured < dynamic_min_sa or sum_assured > dynamic_max_sa:
     st.sidebar.warning(
-        f"⚠️ STBH vượt ngoài dải thẩm định động theo phí ({fmt_vnd(dynamic_min_sa)} - {fmt_vnd(dynamic_max_sa)})"
+        f"⚠️ STBH nằm ngoài giới hạn ({fmt_vnd(dynamic_min_sa)} - {fmt_vnd(dynamic_max_sa)})"
     )
 
+# ---------------------------------------------------------
+# CẤU HÌNH SẢN PHẨM BỔ TRỢ (RIDERS)
+# ---------------------------------------------------------
+st.sidebar.markdown("---")
+st.sidebar.subheader("🛡️ Sản phẩm bổ trợ (Riders)")
+
+# 1. CIR1 (Giới hạn tối đa 400 triệu, mặc định 0)
+use_cir1 = st.sidebar.checkbox("Bảo hiểm Bệnh hiểm nghèo (CIR1)", value=False)
+sa_cir1 = 0
+if use_cir1:
+    sa_cir1_m = st.sidebar.number_input(
+        "STBH CIR1 (Triệu VNĐ - Tối đa 400tr):",
+        min_value=0.0,
+        max_value=400.0,
+        value=0.0,
+        step=10.0,
+        format="%g",
+    )
+    sa_cir1 = int(sa_cir1_m * 1_000_000)
+
+# 2. CIR2 (Giới hạn tối đa 500 triệu, mặc định 0)
+use_cir2 = st.sidebar.checkbox(
+    "Bảo hiểm Bệnh hiểm nghèo nâng cao (CIR2)", value=False
+)
+sa_cir2 = 0
+if use_cir2:
+    sa_cir2_m = st.sidebar.number_input(
+        "STBH CIR2 (Triệu VNĐ - Tối đa 500tr):",
+        min_value=0.0,
+        max_value=500.0,
+        value=0.0,
+        step=10.0,
+        format="%g",
+    )
+    sa_cir2 = int(sa_cir2_m * 1_000_000)
+
+# 3. Tai nạn (Giới hạn tối đa 500 triệu, mặc định 0)
+use_pa = st.sidebar.checkbox("Bảo hiểm Tai nạn cá nhân (PA)", value=False)
+sa_pa = 0
+if use_pa:
+    sa_pa_m = st.sidebar.number_input(
+        "STBH Tai nạn (Triệu VNĐ - Tối đa 500tr):",
+        min_value=0.0,
+        max_value=500.0,
+        value=0.0,
+        step=10.0,
+        format="%g",
+    )
+    sa_pa = int(sa_pa_m * 1_000_000)
+
 
 # ---------------------------------------------------------
-# 3. ENGINE TÍNH TOÁN DÒNG TIỀN
+# 3. ENGINE TÍNH TOÁN DÒNG TIỀN (BAO GỒM CẢ RIDERS)
 # ---------------------------------------------------------
 def generate_ul_projection(
-    prod_code, entry_age, tp, prem_term, sa, interest_rate=0.05
+    prod_code,
+    entry_age,
+    tp,
+    prem_term,
+    sa,
+    sa_cir1,
+    sa_cir2,
+    sa_pa,
+    interest_rate=0.05,
 ):
     records = []
     accumulated_prem = 0
@@ -191,9 +279,9 @@ def generate_ul_projection(
     sa_to_tp_ratio = sa / tp if tp > 0 else 0
 
     if prod_code == "UL2":
-        special_bonus_rate = min(1.0, max(0.2, sa_to_tp_ratio / 90.0))
+        special_bonus_rate = min(1.0, max(0.25, sa_to_tp_ratio / 60.0))
     else:
-        special_bonus_rate = min(0.5, max(0.1, (sa_to_tp_ratio / 100.0) * 0.5))
+        special_bonus_rate = min(0.5, max(0.15, sa_to_tp_ratio / 80.0))
 
     max_years = max(1, 100 - entry_age)
 
@@ -212,24 +300,35 @@ def generate_ul_projection(
                 bonus += tp * 0.06
             elif pol_year == 8:
                 bonus += tp * 0.12
-            elif pol_year in [12, 16, 20]:
+            elif pol_year >= 12 and pol_year % 4 == 0:
                 bonus += tp * 0.18
 
             if pol_year == 10:
                 bonus += tp * special_bonus_rate
 
-        else:
-            if pol_year in [3, 6, 9, 12, 15, 18]:
+        else:  # UL3
+            if pol_year % 3 == 0:
                 bonus += tp * 0.04
 
             if pol_year == 10:
                 bonus += tp * special_bonus_rate
 
-        coi_rate = 0.0015 + (current_age * 0.0001)
-        coi_fee = sa * coi_rate
+        # Khấu trừ chi phí rủi ro (COI) chính và sản phẩm bổ trợ
+        coi_rate_main = 0.0015 + (current_age * 0.0001)
+        coi_fee_main = sa * coi_rate_main
+
+        coi_fee_cir1 = (
+            sa_cir1 * (0.0008 + current_age * 0.00005) if sa_cir1 > 0 else 0
+        )
+        coi_fee_cir2 = (
+            sa_cir2 * (0.0012 + current_age * 0.00006) if sa_cir2 > 0 else 0
+        )
+        coi_fee_pa = sa_pa * 0.0012 if sa_pa > 0 else 0
+
+        total_coi_fee = coi_fee_main + coi_fee_cir1 + coi_fee_cir2 + coi_fee_pa
 
         account_value = (
-            account_value + invest_prem - coi_fee + bonus
+            account_value + invest_prem - total_coi_fee + bonus
         ) * (1 + interest_rate)
         if account_value < 0:
             account_value = 0
@@ -257,90 +356,87 @@ def generate_ul_projection(
 
 
 # ---------------------------------------------------------
-# 4. HÀM TẠO FILE PDF (CĂN CHỈNH KHOẢNG CÁCH CỘT THOÁNG ĐẸP)
+# 4. HÀM TẠO FILE PDF (TIẾNG VIỆT KHÔNG DẤU CHUẨN)
 # ---------------------------------------------------------
 def create_pdf_report(
-    fullname, prod_name, entry_age, sum_assured, target_premium, prem_term, df_p
+    fullname,
+    prod_name,
+    entry_age,
+    sum_assured,
+    target_premium,
+    prem_term,
+    df_p,
+    sa_cir1,
+    sa_cir2,
+    sa_pa,
 ):
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
 
-    # Tiêu đề báo cáo
     c.setFont("Helvetica-Bold", 14)
-    c.drawString(30, height - 35, "BANG MINH HOA QUYEN LOI BAO HIEM")
-
-    c.setFont("Helvetica-Bold", 11)
+    c.drawString(50, height - 40, "BANG MINH HOA QUYEN LOI BAO HIEM")
+    c.setFont("Helvetica-Bold", 12)
     c.setFillColorRGB(0, 0.3, 0.6)
     c.drawString(
-        30,
-        height - 55,
+        50,
+        height - 60,
         f"San pham: {prod_name.replace('Hạnh Phúc', 'Hanh Phuc').replace('Bình An', 'Binh An')}",
     )
 
-    c.setFont("Helvetica", 9)
+    c.setFont("Helvetica", 10)
     c.setFillColorRGB(0, 0, 0)
     c.drawString(
-        30, height - 75, f"Khach hang: {fullname} | Tuoi tham gia: {entry_age}"
+        50, height - 85, f"Khach hang: {fullname} | Tuoi tham gia: {entry_age}"
     )
     c.drawString(
-        30,
-        height - 90,
-        f"STBH: {fmt_vnd(sum_assured)} | Phi co ban: {fmt_vnd(target_premium)}/nam ({prem_term} nam)",
+        50,
+        height - 100,
+        f"STBH chinh: {fmt_vnd(sum_assured)} | Phi co ban: {fmt_vnd(target_premium)}/nam ({prem_term} nam)",
     )
 
-    # ĐỊNH NGHĨA TỌA ĐỘ X CHO TỪNG CỘT (GIÚP CÁC CỘT CÁCH XA NHAU KHÔNG BỊ ĐÈ CHỮ)
-    # Tổng chiều ngang A4 khoảng 595 pt, lề trái 30 pt
-    col_x = [
-        30,  # 1. Năm/Tuổi
-        95,  # 2. Phí Đóng
-        170,  # 3. Tổng Phí
-        245,  # 4. Thưởng
-        315,  # 5. Tử Vong
-        390,  # 6. Giá Trị TK
-        485,  # 7. Hoàn Lại
-    ]
+    # Hiển thị thêm thông tin bổ trợ nếu có
+    rider_str = "Bo tro: "
+    if sa_cir1 > 0:
+        rider_str += f"CIR1 ({fmt_vnd(sa_cir1)}) "
+    if sa_cir2 > 0:
+        rider_str += f"CIR2 ({fmt_vnd(sa_cir2)}) "
+    if sa_pa > 0:
+        rider_str += f"Tai nan ({fmt_vnd(sa_pa)})"
+    if sa_cir1 == 0 and sa_cir2 == 0 and sa_pa == 0:
+        rider_str += "Khong co"
 
-    c.setFont("Helvetica-Bold", 8)
-    y_start = height - 120
+    c.drawString(50, height - 115, rider_str)
 
-    headers = [
-        "Nam/Tuoi",
-        "Phi Dong",
-        "Tong Phi",
-        "Thuong",
-        "Tu Vong",
-        "Gia Tri TK",
-        "Hoan Lai",
-    ]
-    for i, h in enumerate(headers):
-        c.drawString(col_x[i], y_start, h)
-
-    c.line(30, y_start - 5, width - 30, y_start - 5)
+    c.setFont("Helvetica-Bold", 9)
+    y_start = height - 140
+    c.drawString(
+        50,
+        y_start,
+        "Nam/Tuoi      Phi Dong      Tong Phi      Thuong      Tu Vong      Gia Tri TK      Hoan Lai",
+    )
+    c.line(50, y_start - 5, width - 50, y_start - 5)
 
     c.setFont("Helvetica", 8)
-    y = y_start - 18
+    y = y_start - 20
 
     for index, row in df_p.iterrows():
-        if y < 40:  # Sang trang mới khi hết chiều cao trang giấy
+        if y < 50:
             c.showPage()
             c.setFont("Helvetica", 8)
-            y = height - 40
+            y = height - 50
 
-        row_data = [
-            str(row["Năm/Tuổi"]),
-            fmt_vnd_short(row["Phí Đóng Dự Kiến"]),
-            fmt_vnd_short(row["Tổng Phí Lũy Kế"]),
-            fmt_vnd_short(row["Thưởng Gắn Bó"]),
-            fmt_vnd_short(row["Quyền Lợi Tử Vong"]),
-            fmt_vnd_short(row["Giá Trị Tài Khoản"]),
-            fmt_vnd_short(row["Giá Trị Hoàn Lại"]),
-        ]
-
-        for i, val in enumerate(row_data):
-            c.drawString(col_x[i], y, val)
-
-        y -= 14
+        line_str = (
+            f"{row['Năm/Tuổi']:<12} "
+            f"{fmt_vnd_short(row['Phí Đóng Dự Kiến']):<13} "
+            f"{fmt_vnd_short(row['Tổng Phí Lũy Kế']):<13} "
+            f"{fmt_vnd_short(row['Thưởng Gắn Bó']):<11} "
+            f"{fmt_vnd_short(row['Quyền Lợi Tử Vong']):<12} "
+            f"{fmt_vnd_short(row['Giá Trị Tài Khoản']):<15} "
+            f"{fmt_vnd_short(row['Giá Trị Hoàn Lại'])}"
+        )
+        c.drawString(50, y, line_str)
+        y -= 15
 
     c.save()
     buffer.seek(0)
@@ -351,7 +447,14 @@ def create_pdf_report(
 # 5. HIỂN THỊ GIAO DIỆN WEB
 # ---------------------------------------------------------
 df_proj = generate_ul_projection(
-    prod_code, entry_age, target_premium, prem_term, sum_assured
+    prod_code,
+    entry_age,
+    target_premium,
+    prem_term,
+    sum_assured,
+    sa_cir1,
+    sa_cir2,
+    sa_pa,
 )
 
 col1, col2, col3, col4 = st.columns(4)
@@ -382,7 +485,7 @@ else:
 
 col_title, col_btn = st.columns([3, 1])
 with col_title:
-    st.subheader("📋 Bảng Dòng Tiền Chi Tiết")
+    st.subheader("📋 Bảng Dòng Chi Tiết (Kèm Sản Phẩm Bổ Trợ)")
 with col_btn:
     pdf_buffer = create_pdf_report(
         fullname,
@@ -392,6 +495,9 @@ with col_btn:
         target_premium,
         prem_term,
         df_proj,
+        sa_cir1,
+        sa_cir2,
+        sa_pa,
     )
     st.download_button(
         label="📥 Tải Minh Họa Nháp (PDF)",
