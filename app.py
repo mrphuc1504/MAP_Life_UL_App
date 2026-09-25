@@ -6,17 +6,17 @@ from reportlab.pdfgen import canvas
 import streamlit as st
 
 # ---------------------------------------------------------
-# 1. CẤU HÌNH TRANG WEB & ÉP HIỂN THỊ SIDEBAR
+# 1. CẤU HÌNH TRANG WEB & ÉP HIỂN THỊ SIDEBAR TRÊN MOBILE
 # ---------------------------------------------------------
 st.set_page_config(
     page_title="MAP Life UL Illustration Tool",
     page_icon="🛡️",
     layout="wide",
-    initial_sidebar_state="expanded",  # Ép mở sẵn bảng nhập thông tin ngay khi vào app
+    initial_sidebar_state="expanded",
 )
 
-# CSS dọn dẹp giao diện tổng thể
-hide_ui_style = """
+# CSS dọn dẹp giao diện và ÉP SIDEBAR LUÔN HIỂN THỊ trên cả điện thoại
+force_sidebar_style = """
     <style>
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
@@ -24,9 +24,22 @@ hide_ui_style = """
     .stDeployButton {display:none;}
     [data-testid="stToolbar"] {visibility: hidden !important;}
     [data-testid="stDecoration"] {visibility: hidden !important;}
+    
+    /* Ép sidebar hiển thị và không bị thu gọn trên mobile */
+    [data-testid="stSidebar"] {
+        min-width: 280px !important;
+        max-width: 350px !important;
+        transform: none !important;
+        visibility: visible !important;
+    }
+    
+    /* Đảm bảo nút đóng/mở sidebar trên mobile không che khuất nội dung */
+    [data-testid="collapsedControl"] {
+        display: none !important;
+    }
     </style>
 """
-st.markdown(hide_ui_style, unsafe_allow_html=True)
+st.markdown(force_sidebar_style, unsafe_allow_html=True)
 
 
 def fmt_vnd(amount):
@@ -62,7 +75,7 @@ def get_sam_multipliers(prod_code, age):
             return 5, 25
 
 
-st.title("🛡️ BẢNG MINH HỌA MAPLIFE")
+st.title("🛡️ BẢNG MINH HỌA MAPLIFE UL")
 st.caption(
     "Công cụ hỗ trợ tư vấn & tính toán quyền lợi sản phẩm MAP Life Hạnh Phúc (UL2) & Bình An (UL3)"
 )
@@ -70,7 +83,7 @@ st.caption(
 # ---------------------------------------------------------
 # 2. THANH THÔNG TIN BÊN (SIDEBAR)
 # ---------------------------------------------------------
-st.sidebar.header("📋 THÔNG TIN CẤU HÌNH")
+st.sidebar.header("📋 THÔNG TIN ")
 
 product_choice = st.sidebar.selectbox(
     "Lựa chọn sản phẩm bảo hiểm:",
@@ -395,7 +408,7 @@ if not df_proj.empty:
             "Thưởng Gắn Bó",
             "Quyền Lợi Tử Vong",
             "Giá Trị Tài Khoản",
-            "Giá Trị Hoàn Lại",
+            "Giá Trilt Hoàn Lại" if "Giá Trilt Hoàn Lại" in df_display.columns else "Giá Trị Hoàn Lại",
         ]],
         use_container_width=True,
         height=550,
