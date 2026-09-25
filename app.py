@@ -14,7 +14,7 @@ import streamlit as st
 # 1. CẤU HÌNH TRANG WEB
 # ---------------------------------------------------------
 st.set_page_config(
-    page_title="Tình nhanh UL MAP Life",
+    page_title="MAP Life UL Illustration Tool",
     page_icon="🛡️",
     layout="wide",
 )
@@ -73,16 +73,21 @@ def get_sam_multipliers(prod_code, age):
             return 5, 25
 
 
-st.title("🛡️TÍNH NHANH UL")
+st.title("🛡️ BẢNG MINH HỌA DÒNG TIỀN MAP LIFE UL")
 st.caption(
-    "Công cụ hỗ trợ tư vấn & tính toán nhanh quyền lợi sản phẩm MAP Life Hạnh Phúc (UL2) & Bình An (UL3)"
+    "Công cụ hỗ trợ tư vấn & tính toán quyền lợi sản phẩm MAP Life Hạnh Phúc (UL2) & Bình An (UL3)"
 )
 st.markdown("---")
 
 # ---------------------------------------------------------
-# 2. KHU VỰC CẤU HÌNH TRỰC QUAN (MÀN HÌNH CHÍNH)
+# 2. KHU VỰC CẤU HÌNH TRỰC QUAN (ĐÃ LƯỢC BỚT Ô RƯỜM RÀ)
 # ---------------------------------------------------------
-st.subheader("📋 Thông tin Sản phẩm & Khách hàng")
+st.subheader("📋 Cấu hình thông tin Hợp đồng & Khách hàng")
+
+with st.container():
+    st.markdown('<div class="card-container">', unsafe_allow_html=True)
+
+    col_cfg1, col_cfg2 = st.columns(2)
 
     with col_cfg1:
         product_choice = st.selectbox(
@@ -108,29 +113,17 @@ st.subheader("📋 Thông tin Sản phẩm & Khách hàng")
             abs_min_tp = 9_091_000
             abs_min_sa = 200_000_000
 
-        fullname = st.text_input("Họ và tên NĐBH", "Nguyễn Văn A")
+        fullname = st.text_input("Họ và tên NĐBH", "Nguyễn Văn Đạt")
 
-        st.markdown("**Ngày sinh Người được bảo hiểm:**")
-        col_d, col_m, col_y = st.columns(3)
-        with col_y:
-            birth_year = st.selectbox(
-                "Năm", range(1950, 2027), index=40, key="b_year"
-            )
-        with col_m:
-            birth_month = st.selectbox("Tháng", range(1, 13), index=0, key="b_month")
-        with col_d:
-            birth_day = st.selectbox("Ngày", range(1, 32), index=0, key="b_day")
-
-        today = datetime.now()
-        try:
-            dob = datetime(birth_year, birth_month, birth_day)
-            entry_age = (
-                today.year
-                - dob.year
-                - ((today.month, today.day) < (dob.month, dob.day))
-            )
-        except ValueError:
-            entry_age = today.year - birth_year
+        # Thay vì 3 ô ngày/tháng/năm, gom gọn lại 1 ô Năm sinh duy nhất
+        current_year = datetime.now().year
+        birth_year = st.selectbox(
+            "Năm sinh Người được bảo hiểm:",
+            range(1950, current_year + 1),
+            index=36,  # Mặc định năm tương ứng ~1986 hoặc điều chỉnh
+            key="b_year",
+        )
+        entry_age = current_year - birth_year
 
     with col_cfg2:
         tp_in_millions = st.number_input(
@@ -276,16 +269,13 @@ def create_pdf_report(
     )
     story = []
 
-    # Cấu hình đăng ký font Calibri (Hỗ trợ Unicode tiếng Việt)
     try:
-        # Kiểm tra nếu có sẵn file calibri.ttf trong thư mục dự án
         if os.path.exists("calibri.ttf") and os.path.exists("calibrib.ttf"):
             pdfmetrics.registerFont(TTFont("Calibri", "calibri.ttf"))
             pdfmetrics.registerFont(TTFont("Calibri-Bold", "calibrib.ttf"))
             font_name = "Calibri"
             font_bold = "Calibri-Bold"
         else:
-            # Fallback sang DejaVu nếu chưa có file ttf của Calibri trên thư mục chạy
             pdfmetrics.registerFont(TTFont("DejaVu", "DejaVuSans.ttf"))
             pdfmetrics.registerFont(TTFont("DejaVu-Bold", "DejaVuSans-Bold.ttf"))
             font_name = "DejaVu"
@@ -406,7 +396,7 @@ if not breakeven_df.empty:
     be_acc_val = fmt_vnd(first_be["Giá Trị Tài Khoản"])
 
     st.success(
-        f"💡 **({prod_name}):** Ở mức lãi suất giả định 5%/năm, Giá trị tài khoản hợp đồng sẽ **vượt Tổng phí đóng** từ **Năm hợp đồng thứ {be_year}** (lúc khách hàng **{be_age} tuổi**) với số tiền đạt **{be_acc_val}**."
+        f"💡 **Điểm nổi bật ({prod_name}):** Ở mức lãi suất giả định 5%/năm, Giá trị tài khoản hợp đồng sẽ **vượt Tổng phí đóng** từ **Năm hợp đồng thứ {be_year}** (lúc khách hàng **{be_age} tuổi**) với số tiền đạt **{be_acc_val}**."
     )
 else:
     st.warning(
@@ -415,7 +405,7 @@ else:
 
 col_title, col_btn = st.columns([3, 1])
 with col_title:
-    st.subheader("📋 Bảng Dòng Tiền Chi Tiết")
+    st.subheader("📋 Bảng Dòng Tiền Chi Tiết Hợp Đồng")
 with col_btn:
     pdf_buffer = create_pdf_report(
         fullname,
@@ -427,7 +417,7 @@ with col_btn:
         df_proj,
     )
     st.download_button(
-        label="📥 Tải Minh Họa Nháp (PDF)",
+        label="📥 Tải Bảng Minh Họa (PDF)",
         data=pdf_buffer,
         file_name=f"Minh_Hoa_Dich_Vu_{prod_code}_{fullname.replace(' ', '_')}.pdf",
         mime="application/pdf",
@@ -464,4 +454,4 @@ if not df_proj.empty:
         height=550,
     )
 else:
-    st.warning("⚠️ Không có dữ liệu minh họa. Vui lòng kiểm tra lại Ngày sinh.")
+    st.warning("⚠️ Không có dữ liệu minh họa. Vui lòng kiểm tra lại Năm sinh.")
