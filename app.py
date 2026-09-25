@@ -34,6 +34,18 @@ mobile_css = """
     .stNumberInput, .stSelectbox, .stRadio, .stSlider {
         margin-bottom: 8px;
     }
+
+    /* Ép tất cả các cụm chia cột (st.columns) luôn nằm trên 1 hàng ngang trên điện thoại */
+    [data-testid="stHorizontalBlock"] {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+    }
+    [data-testid="column"] {
+        flex: 1 1 0% !important;
+        min-width: 0px !important;
+        overflow: hidden !important;
+    }
     </style>
 """
 st.markdown(mobile_css, unsafe_allow_html=True)
@@ -113,7 +125,7 @@ st.markdown("### 👤 2. Thông tin KH")
 fullname = st.text_input("Họ và tên NĐBH", "Lộc Đại Phu")
 gender = st.radio("Giới tính", ["Nam", "Nữ"], horizontal=True)
 
-# Gộp Ngày, Tháng, Năm sinh vào chung 1 hàng ngang
+# Gộp Ngày, Tháng, Năm sinh vào chung 1 hàng ngang trên mọi thiết bị
 st.markdown("🗓️ **Ngày tháng năm sinh:**")
 col_d, col_m, col_y = st.columns(3)
 with col_d:
