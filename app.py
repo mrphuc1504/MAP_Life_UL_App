@@ -121,32 +121,25 @@ def get_sam_multipliers(prod_code, age):
 
 # ---------------------------------------------------------
 # HÀM CHUẨN HÓA TÍNH PHÍ RỦI RO SẢN PHẨM BỔ TRỢ (RIDERS)
-# Bạn có thể thay thế công thức/tỷ lệ dưới đây khớp tuyệt đối với file Excel
 # ---------------------------------------------------------
 def calculate_rider_fees(age, gender, sa_cir1, sa_cir2, sa_pa):
     gender_factor = 1.0 if gender == "Nam" else 0.88
     
-    # Phí rủi ro CIR1 (Bệnh hiểm nghèo cơ bản)
     coi_fee_cir1 = (
         sa_cir1 * (0.0008 + age * 0.00005) * gender_factor
         if sa_cir1 > 0
         else 0
     )
-    
-    # Phí rủi ro CIR2 (Bệnh hiểm nghèo nâng cao)
     coi_fee_cir2 = (
         sa_cir2 * (0.0012 + age * 0.00006) * gender_factor
         if sa_cir2 > 0
         else 0
     )
-    
-    # Phí rủi ro Tai nạn (PDD1)
     coi_fee_pa = (
         sa_pa * 0.0012 * gender_factor 
         if sa_pa > 0 
         else 0
     )
-    
     return coi_fee_cir1, coi_fee_cir2, coi_fee_pa
 
 
@@ -316,7 +309,7 @@ if use_pa:
 
 
 # ---------------------------------------------------------
-# 3. ENGINE TÍNH TOÁN DÒNG TIỀN
+# 3. ENGINE TÍNH TOÁN DÒNG TIỀN (CHUẨN PHÍ BAN ĐẦU HẾT NĂM 6 / NĂM 5)
 # ---------------------------------------------------------
 def generate_ul_projection(
     prod_code,
@@ -341,7 +334,7 @@ def generate_ul_projection(
     for pol_year in range(1, max_years + 1):
         current_age = entry_age + pol_year - 1
 
-        # Phí ban đầu chuẩn UL2 / UL3
+        # Phí ban đầu chuẩn: UL2 đến hết năm 6, UL3 đến hết năm 5
         if prod_code == "UL2":
             if pol_year in [1, 2]:
                 init_fee_rate = 0.80
@@ -354,7 +347,7 @@ def generate_ul_projection(
             elif pol_year == 6:
                 init_fee_rate = 0.10
             else:
-                init_fee_rate = 0.05
+                init_fee_rate = 0.00  # Từ năm thứ 7 là 0%
         else:  # UL3
             if pol_year == 1:
                 init_fee_rate = 0.50
@@ -367,9 +360,9 @@ def generate_ul_projection(
             elif pol_year == 5:
                 init_fee_rate = 0.10
             else:
-                init_fee_rate = 0.03
+                init_fee_rate = 0.00  # Từ năm thứ 6 là 0%
 
-        # Gọi hàm tính phí bổ trợ theo năm tuổi hiện tại
+        # Phí bổ trợ
         coi_fee_cir1, coi_fee_cir2, coi_fee_pa = calculate_rider_fees(
             current_age, gender, sa_cir1, sa_cir2, sa_pa
         )
