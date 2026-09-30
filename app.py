@@ -251,7 +251,7 @@ if use_pa:
 
 
 # ---------------------------------------------------------
-# 3. ENGINE TÍNH TOÁN DÒNG TIỀN (CHUẨN HÓA THƯỞNG UL2 & UL3)
+# 3. ENGINE TÍNH TOÁN DÒNG TIỀN (TÁCH BIỆT BIỂU PHÍ & QUY CHẾ THƯỞNG)
 # ---------------------------------------------------------
 def generate_ul_projection(
     prod_code,
@@ -268,7 +268,12 @@ def generate_ul_projection(
     records = []
     accumulated_prem = 0
     account_value = 0
-    init_fee_rate = {1: 0.50, 2: 0.30, 3: 0.20, 4: 0.20, 5: 0.20}
+
+    # Tách biệt biểu phí ban đầu theo đúng quy chế từng sản phẩm
+    if prod_code == "UL2":
+        init_fee_rate = {1: 0.50, 2: 0.30, 3: 0.20, 4: 0.20, 5: 0.20}
+    else:  # UL3 (MAP Life Bình An)
+        init_fee_rate = {1: 0.40, 2: 0.25, 3: 0.15, 4: 0.10, 5: 0.05}
 
     gender_factor = 1.0 if gender == "Nam" else 0.88
     sa_to_tp_ratio = sa / tp if tp > 0 else 0
@@ -327,7 +332,7 @@ def generate_ul_projection(
             if pol_year == 10:
                 bonus += tp * special_bonus_rate
 
-        else:  # UL3 - Chỉ có thưởng gắn bó định kỳ mỗi 3 năm, KHÔNG CÓ thưởng đặc biệt năm 10
+        else:  # UL3 - Thưởng gắn bó định kỳ mỗi 3 năm, KHÔNG CÓ thưởng đặc biệt năm 10
             if pol_year % 3 == 0:
                 bonus += tp * 0.04
 
