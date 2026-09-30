@@ -119,6 +119,37 @@ def get_sam_multipliers(prod_code, age):
             return 5, 10
 
 
+# ---------------------------------------------------------
+# HÀM CHUẨN HÓA TÍNH PHÍ RỦI RO SẢN PHẨM BỔ TRỢ (RIDERS)
+# Bạn có thể thay thế công thức/tỷ lệ dưới đây khớp tuyệt đối với file Excel
+# ---------------------------------------------------------
+def calculate_rider_fees(age, gender, sa_cir1, sa_cir2, sa_pa):
+    gender_factor = 1.0 if gender == "Nam" else 0.88
+    
+    # Phí rủi ro CIR1 (Bệnh hiểm nghèo cơ bản)
+    coi_fee_cir1 = (
+        sa_cir1 * (0.0008 + age * 0.00005) * gender_factor
+        if sa_cir1 > 0
+        else 0
+    )
+    
+    # Phí rủi ro CIR2 (Bệnh hiểm nghèo nâng cao)
+    coi_fee_cir2 = (
+        sa_cir2 * (0.0012 + age * 0.00006) * gender_factor
+        if sa_cir2 > 0
+        else 0
+    )
+    
+    # Phí rủi ro Tai nạn (PDD1)
+    coi_fee_pa = (
+        sa_pa * 0.0012 * gender_factor 
+        if sa_pa > 0 
+        else 0
+    )
+    
+    return coi_fee_cir1, coi_fee_cir2, coi_fee_pa
+
+
 st.title("🛡️ Mobile UL")
 st.caption("Công cụ minh họa dòng tiền & tư vấn bảo hiểm tối ưu trên di động")
 
@@ -285,7 +316,7 @@ if use_pa:
 
 
 # ---------------------------------------------------------
-# 3. ENGINE TÍNH TOÁN DÒNG TIỀN (CHUẨN BIỂU PHÍ BAN ĐẦU & HỆ SỐ MỚI)
+# 3. ENGINE TÍNH TOÁN DÒNG TIỀN
 # ---------------------------------------------------------
 def generate_ul_projection(
     prod_code,
@@ -310,7 +341,7 @@ def generate_ul_projection(
     for pol_year in range(1, max_years + 1):
         current_age = entry_age + pol_year - 1
 
-        # Phí ban đầu chuẩn
+        # Phí ban đầu chuẩn UL2 / UL3
         if prod_code == "UL2":
             if pol_year in [1, 2]:
                 init_fee_rate = 0.80
@@ -338,18 +369,9 @@ def generate_ul_projection(
             else:
                 init_fee_rate = 0.03
 
-        coi_fee_cir1 = (
-            sa_cir1 * (0.0008 + current_age * 0.00005) * gender_factor
-            if sa_cir1 > 0
-            else 0
-        )
-        coi_fee_cir2 = (
-            sa_cir2 * (0.0012 + current_age * 0.00006) * gender_factor
-            if sa_cir2 > 0
-            else 0
-        )
-        coi_fee_pa = (
-            sa_pa * 0.0012 * gender_factor if sa_pa > 0 else 0
+        # Gọi hàm tính phí bổ trợ theo năm tuổi hiện tại
+        coi_fee_cir1, coi_fee_cir2, coi_fee_pa = calculate_rider_fees(
+            current_age, gender, sa_cir1, sa_cir2, sa_pa
         )
         total_rider_fee = coi_fee_cir1 + coi_fee_cir2 + coi_fee_pa
 
@@ -422,22 +444,6 @@ def generate_ul_projection(
     return pd.DataFrame(records)
 
 
-def get_rider_fee_year1(age, gender, sa_cir1, sa_cir2, sa_pa):
-    gender_factor = 1.0 if gender == "Nam" else 0.88
-    fee_cir1 = (
-        sa_cir1 * (0.0008 + age * 0.00005) * gender_factor
-        if sa_cir1 > 0
-        else 0
-    )
-    fee_cir2 = (
-        sa_cir2 * (0.0012 + age * 0.00006) * gender_factor
-        if sa_cir2 > 0
-        else 0
-    )
-    fee_pa = sa_pa * 0.0012 * gender_factor if sa_pa > 0 else 0
-    return fee_cir1, fee_cir2, fee_pa
-
-
 # ---------------------------------------------------------
 # 4. HÀM TẠO FILE PDF
 # ---------------------------------------------------------
@@ -498,7 +504,7 @@ def create_pdf_report(
     <b>STBH chinh:</b> {fmt_vnd_pdf(sum_assured)} | <b>Phi co ban:</b> {fmt_vnd_pdf(target_premium)}/nam ({prem_term} nam)
     """
 
-    f1, f2, f3 = get_rider_fee_year1(entry_age, gender, sa_cir1, sa_cir2, sa_pa)
+    f1, f2, f3 = calculate_rider_fees(entry_age, gender, sa_cir1, sa_cir2, sa_pa)
     rider_parts = []
     if sa_cir1 > 0:
         rider_parts.append(
@@ -593,7 +599,7 @@ df_proj = generate_ul_projection(
     sa_pa,
 )
 
-f1, f2, f3 = get_rider_fee_year1(entry_age, gender, sa_cir1, sa_cir2, sa_pa)
+f1, f2, f3 = calculate_rider_fees(entry_age, gender, sa_cir1, sa_cir2, sa_pa)
 total_rider_year1 = f1 + f2 + f3
 
 col_res1, col_res2 = st.columns(2)
