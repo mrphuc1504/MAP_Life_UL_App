@@ -12,7 +12,7 @@ import streamlit as st
 # 1. CẤU HÌNH GIAO DIỆN DI ĐỘNG (MOBILE-FIRST) & ẨN HỆ THỐNG
 # ---------------------------------------------------------
 st.set_page_config(
-    page_title="Tính nhanh UL", page_icon="🛡️️", layout="centered"
+    page_title="Tính nhanh UL", page_icon="🛡️", layout="centered"
 )
 
 mobile_css = """
@@ -59,28 +59,64 @@ def remove_accents(text):
 
 
 def get_sam_multipliers(prod_code, age):
-    if prod_code == "UL2":
-        if age <= 30:
+    if prod_code == "UL2":  # Chuẩn theo bảng hệ số mới UL2
+        if age <= 5:
+            return 35, 175
+        elif age <= 10:
+            return 35, 155
+        elif age <= 15:
+            return 30, 135
+        elif age <= 20:
+            return 25, 120
+        elif age <= 25:
+            return 25, 115
+        elif age <= 30:
+            return 25, 105
+        elif age <= 35:
+            return 25, 95
+        elif age <= 40:
             return 25, 90
-        elif age <= 40:
-            return 20, 75
-        elif age <= 50:
-            return 15, 55
-        elif age <= 60:
-            return 10, 35
-        else:
-            return 5, 20
-    else:  # UL3
-        if age <= 30:
-            return 20, 100
-        elif age <= 40:
-            return 18, 80
-        elif age <= 50:
+        elif age <= 45:
             return 15, 60
-        elif age <= 60:
+        elif age <= 50:
             return 10, 40
+        elif age <= 55:
+            return 7, 25
+        elif age <= 60:
+            return 5, 20
+        elif age <= 65:
+            return 5, 15
         else:
-            return 5, 25
+            return 5, 12
+    else:  # UL3 (MAP Life Bình An) - Chuẩn theo bảng hệ số mới UL3
+        if age <= 5:
+            return 25, 170
+        elif age <= 10:
+            return 20, 150
+        elif age <= 15:
+            return 20, 130
+        elif age <= 20:
+            return 20, 120
+        elif age <= 25:
+            return 20, 110
+        elif age <= 30:
+            return 15, 100
+        elif age <= 35:
+            return 15, 95
+        elif age <= 40:
+            return 15, 85
+        elif age <= 45:
+            return 10, 55
+        elif age <= 50:
+            return 7, 35
+        elif age <= 55:
+            return 5, 20
+        elif age <= 60:
+            return 5, 15
+        elif age <= 65:
+            return 5, 10
+        else:
+            return 5, 10
 
 
 st.title("🛡️ Mobile UL")
@@ -198,8 +234,8 @@ st.success(f"👉 **STBH chính:** `{fmt_vnd(sum_assured)}`")
 
 st.caption(
     f"📌 *Hạn mức STBH động ({entry_age} tuổi, phí {fmt_vnd(target_premium)}):*\n"
-    f"- Tối thiểu (Min): **{fmt_vnd(dynamic_min_sa)}**\n"
-    f"- Tối đa (Max): **{fmt_vnd(dynamic_max_sa)}**"
+    f"- Tối thiểu (Min): **{fmt_vnd(dynamic_min_sa)}** (Hệ số: {sam_min_mult}x)\n"
+    f"- Tối đa (Max): **{fmt_vnd(dynamic_max_sa)}** (Hệ số: {sam_max_mult}x)"
 )
 
 # ---------------------------------------------------------
@@ -249,7 +285,7 @@ if use_pa:
 
 
 # ---------------------------------------------------------
-# 3. ENGINE TÍNH TOÁN DÒNG TIỀN (CHUẨN QUY CHẾ THƯỞNG MỚI)
+# 3. ENGINE TÍNH TOÁN DÒNG TIỀN (CHUẨN BIỂU PHÍ BAN ĐẦU & HỆ SỐ MỚI)
 # ---------------------------------------------------------
 def generate_ul_projection(
     prod_code,
@@ -267,16 +303,40 @@ def generate_ul_projection(
     accumulated_prem = 0
     account_value = 0
 
-    if prod_code == "UL2":
-        init_fee_rate = {1: 0.50, 2: 0.30, 3: 0.20, 4: 0.20, 5: 0.20}
-    else:  # UL3
-        init_fee_rate = {1: 0.40, 2: 0.25, 3: 0.15, 4: 0.10, 5: 0.05}
-
+    annual_admin_fee = 480_000
     gender_factor = 1.0 if gender == "Nam" else 0.88
     max_years = max(1, 100 - entry_age)
 
     for pol_year in range(1, max_years + 1):
         current_age = entry_age + pol_year - 1
+
+        # Phí ban đầu chuẩn
+        if prod_code == "UL2":
+            if pol_year in [1, 2]:
+                init_fee_rate = 0.80
+            elif pol_year == 3:
+                init_fee_rate = 0.50
+            elif pol_year == 4:
+                init_fee_rate = 0.40
+            elif pol_year == 5:
+                init_fee_rate = 0.25
+            elif pol_year == 6:
+                init_fee_rate = 0.10
+            else:
+                init_fee_rate = 0.05
+        else:  # UL3
+            if pol_year == 1:
+                init_fee_rate = 0.50
+            elif pol_year == 2:
+                init_fee_rate = 0.40
+            elif pol_year == 3:
+                init_fee_rate = 0.30
+            elif pol_year == 4:
+                init_fee_rate = 0.20
+            elif pol_year == 5:
+                init_fee_rate = 0.10
+            else:
+                init_fee_rate = 0.03
 
         coi_fee_cir1 = (
             sa_cir1 * (0.0008 + current_age * 0.00005) * gender_factor
@@ -298,23 +358,20 @@ def generate_ul_projection(
         )
         accumulated_prem += yearly_prem
 
-        fee_rate = init_fee_rate.get(pol_year, 0.02)
         base_tp = tp if pol_year <= prem_term else 0
         invest_prem = (
-            (base_tp * (1 - fee_rate)) + total_rider_fee
+            (base_tp * (1 - init_fee_rate)) + total_rider_fee
             if pol_year <= prem_term
             else 0
         )
 
         bonus = 0
         if prod_code == "UL2":
-            # Thưởng đồng hành định kỳ: mỗi 4 năm tăng 6% (tối đa 30% tại năm 20)
             if pol_year % 4 == 0:
                 occurrence = pol_year // 4
                 rate_ul2 = min(0.30, occurrence * 0.06)
                 bonus += tp * rate_ul2
 
-            # Thưởng tri ân đặc biệt năm 10 và 20 theo các mức STBH
             if sa < 500_000_000:
                 rate_10, rate_20 = 0.8, 1.6
             elif sa < 1_000_000_000:
@@ -327,7 +384,7 @@ def generate_ul_projection(
             elif pol_year == 20:
                 bonus += tp * rate_20
 
-        else:  # UL3 - Thưởng đồng hành mỗi 3 năm, tăng dần từ 3% đến 8% (3, 4, 5, 6, 7, 8%)
+        else:  # UL3
             if pol_year % 3 == 0:
                 occurrence = pol_year // 3
                 rate_ul3 = min(0.08, (occurrence + 2) / 100)
@@ -336,10 +393,10 @@ def generate_ul_projection(
         coi_rate_main = (0.0015 + (current_age * 0.0001)) * gender_factor
         coi_fee_main = sa * coi_rate_main
 
-        total_coi_fee = coi_fee_main + total_rider_fee
+        total_deductions = coi_fee_main + total_rider_fee + annual_admin_fee
 
         account_value = (
-            account_value + invest_prem - total_coi_fee + bonus
+            account_value + invest_prem - total_deductions + bonus
         ) * (1 + interest_rate)
         if account_value < 0:
             account_value = 0
