@@ -273,11 +273,12 @@ def generate_ul_projection(
     gender_factor = 1.0 if gender == "Nam" else 0.88
     sa_to_tp_ratio = sa / tp if tp > 0 else 0
 
-    # Tính tỷ suất thưởng đặc biệt năm thứ 10 dựa trên tỷ lệ STBH/Phí thực tế
-    if prod_code == "UL2":
-        special_bonus_rate = min(1.0, max(0.25, sa_to_tp_ratio / 60.0))
-    else:
-        special_bonus_rate = min(0.5, max(0.15, sa_to_tp_ratio / 80.0))
+    # Thưởng đặc biệt năm thứ 10 chỉ có ở UL2
+    special_bonus_rate = (
+        min(1.0, max(0.25, sa_to_tp_ratio / 60.0))
+        if prod_code == "UL2"
+        else 0.0
+    )
 
     max_years = max(1, 100 - entry_age)
 
@@ -322,18 +323,13 @@ def generate_ul_projection(
             elif pol_year >= 12 and pol_year % 4 == 0:
                 bonus += tp * 0.18
 
-            # Thưởng đặc biệt năm 10 (UL2)
+            # Thưởng đặc biệt năm 10 (chỉ có ở UL2)
             if pol_year == 10:
                 bonus += tp * special_bonus_rate
 
-        else:  # UL3
-            # Thưởng gắn bó định kỳ UL3 (Cứ mỗi 3 năm)
+        else:  # UL3 - Chỉ có thưởng gắn bó định kỳ mỗi 3 năm, KHÔNG CÓ thưởng đặc biệt năm 10
             if pol_year % 3 == 0:
                 bonus += tp * 0.04
-
-            # Thưởng đặc biệt năm 10 (UL3)
-            if pol_year == 10:
-                bonus += tp * special_bonus_rate
 
         coi_rate_main = (0.0015 + (current_age * 0.0001)) * gender_factor
         coi_fee_main = sa * coi_rate_main
@@ -585,7 +581,7 @@ if riders_summary:
     for r in riders_summary:
         st.markdown(f"- {r}")
 else:
-    st.markdown("🛡️️ **Sản phẩm bổ trợ:** Không có")
+    st.markdown("🛡 **Sản phẩm bổ trợ:** Không có")
 
 st.markdown("---")
 
