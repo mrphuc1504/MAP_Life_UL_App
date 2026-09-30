@@ -114,10 +114,9 @@ else:
 
 st.markdown("---")
 st.markdown("### 👤 2. Thông tin KH")
-fullname = st.text_input("Họ và tên NĐBH", "Lộc Đại Phu")
+fullname = st.text_input("Họ và tên NĐBH", "NGUYỄN VĂN A")
 gender = st.radio("Giới tính", ["Nam", "Nữ"], horizontal=True)
 
-# Dùng st.date_input chuẩn, gọn gàng, tự nhiên
 birth_date = st.date_input(
     "Ngày tháng năm sinh",
     value=date(1993, 9, 18),
@@ -182,17 +181,13 @@ dynamic_min_sa = max(abs_min_sa, target_premium * sam_min_mult)
 dynamic_max_sa = target_premium * sam_max_mult
 min_sa_m = float(dynamic_min_sa / 1_000_000)
 
-config_changed = (
-    st.session_state.get("prev_prod") != prod_code
-    or st.session_state.get("prev_tp") != target_premium
-    or st.session_state.get("prev_age") != entry_age
-)
-
-if config_changed or "sa_input" not in st.session_state:
-    st.session_state.sa_input = min_sa_m
+# Khởi tạo hoặc cập nhật trạng thái STBH thông minh (không bị reset cứng khi thay đổi phí)
+if "prev_prod" not in st.session_state or st.session_state.prev_prod != prod_code:
     st.session_state.prev_prod = prod_code
-    st.session_state.prev_tp = target_premium
-    st.session_state.prev_age = entry_age
+    st.session_state.sa_input = min_sa_m
+
+if st.session_state.sa_input < min_sa_m:
+    st.session_state.sa_input = min_sa_m
 
 sa_in_millions = st.number_input(
     "Số Tiền Bảo Hiểm (STBH) chính (Triệu VNĐ):",
@@ -262,7 +257,7 @@ if use_pa:
 
 
 # ---------------------------------------------------------
-# 3. ENGINE TÍNH TOÁN DÒNG TIỀN (PHÂN BIỆT GIỚI TÍNH NAM / NỮ)
+# 3. ENGINE TÍNH TOÁN DÒNG TIỀN (CHUẨN HÓA THƯỞNG UL2 & UL3)
 # ---------------------------------------------------------
 def generate_ul_projection(
     prod_code,
@@ -282,9 +277,9 @@ def generate_ul_projection(
     init_fee_rate = {1: 0.50, 2: 0.30, 3: 0.20, 4: 0.20, 5: 0.20}
 
     gender_factor = 1.0 if gender == "Nam" else 0.88
-
     sa_to_tp_ratio = sa / tp if tp > 0 else 0
 
+    # Tính tỷ suất thưởng đặc biệt năm thứ 10 dựa trên tỷ lệ STBH/Phí thực tế
     if prod_code == "UL2":
         special_bonus_rate = min(1.0, max(0.25, sa_to_tp_ratio / 60.0))
     else:
@@ -318,14 +313,14 @@ def generate_ul_projection(
         fee_rate = init_fee_rate.get(pol_year, 0.02)
         base_tp = tp if pol_year <= prem_term else 0
         invest_prem = (
-            (base_tp * (1 - fee_rate))
-            + total_rider_fee
+            (base_tp * (1 - fee_rate)) + total_rider_fee
             if pol_year <= prem_term
             else 0
         )
 
         bonus = 0
         if prod_code == "UL2":
+            # Thưởng gắn bó định kỳ UL2
             if pol_year == 4:
                 bonus += tp * 0.06
             elif pol_year == 8:
@@ -333,13 +328,16 @@ def generate_ul_projection(
             elif pol_year >= 12 and pol_year % 4 == 0:
                 bonus += tp * 0.18
 
+            # Thưởng đặc biệt năm 10 (UL2)
             if pol_year == 10:
                 bonus += tp * special_bonus_rate
 
         else:  # UL3
+            # Thưởng gắn bó định kỳ UL3 (Cứ mỗi 3 năm)
             if pol_year % 3 == 0:
                 bonus += tp * 0.04
 
+            # Thưởng đặc biệt năm 10 (UL3)
             if pol_year == 10:
                 bonus += tp * special_bonus_rate
 
