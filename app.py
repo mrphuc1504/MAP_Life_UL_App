@@ -12,7 +12,7 @@ import streamlit as st
 # 1. CẤU HÌNH GIAO DIỆN DI ĐỘNG (MOBILE-FIRST) & ẨN HỆ THỐNG
 # ---------------------------------------------------------
 st.set_page_config(
-    page_title="Tính nhanh UL", page_icon="🛡️", layout="centered"
+    page_title="Tính nhanh UL", page_icon="🛡️️", layout="centered"
 )
 
 mobile_css = """
@@ -99,7 +99,6 @@ product_choice = st.selectbox(
 
 new_prod_code = "UL2" if "UL2" in product_choice else "UL3"
 
-# Khởi tạo hoặc reset trạng thái khi đổi sản phẩm
 if "current_prod" not in st.session_state or st.session_state.current_prod != new_prod_code:
     st.session_state.current_prod = new_prod_code
     if new_prod_code == "UL2":
@@ -123,7 +122,7 @@ else:
 
 st.markdown("---")
 st.markdown("### 👤 2. Thông tin KH")
-fullname = st.text_input("Họ và tên NĐBH", "NGUYỄN VĂN A")
+fullname = st.text_input("Họ và tên NĐBH", "Lộc Đại Phu")
 gender = st.radio("Giới tính", ["Nam", "Nữ"], horizontal=True)
 
 birth_date = st.date_input(
@@ -183,7 +182,6 @@ dynamic_min_sa = max(abs_min_sa, target_premium * sam_min_mult)
 dynamic_max_sa = target_premium * sam_max_mult
 min_sa_m = float(dynamic_min_sa / 1_000_000)
 
-# Đồng bộ tự động giới hạn STBH theo phí mới
 if "sa_input" not in st.session_state or st.session_state.sa_input < min_sa_m:
     st.session_state.sa_input = min_sa_m
 
@@ -236,7 +234,7 @@ if use_cir2:
     )
     sa_cir2 = int(sa_cir2_m * 1_000_000)
 
-use_pa = st.checkbox("Bảo hiểm Hỗ trợ TTVV do Tai nạn (PPD1)", value=False)
+use_pa = st.checkbox("Bảo hiểm Hỗ trợ TTVV do Tai nạn (PDD1)", value=False)
 sa_pa = 0
 if use_pa:
     sa_pa_m = st.number_input(
@@ -251,7 +249,7 @@ if use_pa:
 
 
 # ---------------------------------------------------------
-# 3. ENGINE TÍNH TOÁN DÒNG TIỀN (TÁCH BIỆT BIỂU PHÍ & QUY CHẾ THƯỞNG)
+# 3. ENGINE TÍNH TOÁN DÒNG TIỀN (CHUẨN QUY CHẾ THƯỞNG MỚI)
 # ---------------------------------------------------------
 def generate_ul_projection(
     prod_code,
@@ -269,22 +267,12 @@ def generate_ul_projection(
     accumulated_prem = 0
     account_value = 0
 
-    # Tách biệt biểu phí ban đầu theo đúng quy chế từng sản phẩm
     if prod_code == "UL2":
         init_fee_rate = {1: 0.50, 2: 0.30, 3: 0.20, 4: 0.20, 5: 0.20}
-    else:  # UL3 (MAP Life Bình An)
+    else:  # UL3
         init_fee_rate = {1: 0.40, 2: 0.25, 3: 0.15, 4: 0.10, 5: 0.05}
 
     gender_factor = 1.0 if gender == "Nam" else 0.88
-    sa_to_tp_ratio = sa / tp if tp > 0 else 0
-
-    # Thưởng đặc biệt năm thứ 10 chỉ có ở UL2
-    special_bonus_rate = (
-        min(1.0, max(0.25, sa_to_tp_ratio / 60.0))
-        if prod_code == "UL2"
-        else 0.0
-    )
-
     max_years = max(1, 100 - entry_age)
 
     for pol_year in range(1, max_years + 1):
@@ -320,21 +308,30 @@ def generate_ul_projection(
 
         bonus = 0
         if prod_code == "UL2":
-            # Thưởng gắn bó định kỳ UL2
-            if pol_year == 4:
-                bonus += tp * 0.06
-            elif pol_year == 8:
-                bonus += tp * 0.12
-            elif pol_year >= 12 and pol_year % 4 == 0:
-                bonus += tp * 0.18
+            # Thưởng đồng hành định kỳ: mỗi 4 năm tăng 6% (tối đa 30% tại năm 20)
+            if pol_year % 4 == 0:
+                occurrence = pol_year // 4
+                rate_ul2 = min(0.30, occurrence * 0.06)
+                bonus += tp * rate_ul2
 
-            # Thưởng đặc biệt năm 10 (chỉ có ở UL2)
+            # Thưởng tri ân đặc biệt năm 10 và 20 theo các mức STBH
+            if sa < 500_000_000:
+                rate_10, rate_20 = 0.8, 1.6
+            elif sa < 1_000_000_000:
+                rate_10, rate_20 = 1.0, 2.0
+            else:
+                rate_10, rate_20 = 1.2, 2.4
+
             if pol_year == 10:
-                bonus += tp * special_bonus_rate
+                bonus += tp * rate_10
+            elif pol_year == 20:
+                bonus += tp * rate_20
 
-        else:  # UL3 - Thưởng gắn bó định kỳ mỗi 3 năm, KHÔNG CÓ thưởng đặc biệt năm 10
+        else:  # UL3 - Thưởng đồng hành mỗi 3 năm, tăng dần từ 3% đến 8% (3, 4, 5, 6, 7, 8%)
             if pol_year % 3 == 0:
-                bonus += tp * 0.04
+                occurrence = pol_year // 3
+                rate_ul3 = min(0.08, (occurrence + 2) / 100)
+                bonus += tp * rate_ul3
 
         coi_rate_main = (0.0015 + (current_age * 0.0001)) * gender_factor
         coi_fee_main = sa * coi_rate_main
@@ -385,7 +382,7 @@ def get_rider_fee_year1(age, gender, sa_cir1, sa_cir2, sa_pa):
 
 
 # ---------------------------------------------------------
-# 4. HÀM TẠO FILE PDF (HOÀN TOÀN KHÔNG DẤU, CHUẨN FONT PDF)
+# 4. HÀM TẠO FILE PDF
 # ---------------------------------------------------------
 def create_pdf_report(
     fullname,
@@ -522,7 +519,7 @@ def create_pdf_report(
 
 
 # ---------------------------------------------------------
-# 5. HIỂN THỊ KẾT QUẢ GỌN GÀNG & KÈM PHÍ RỦI RO SẢN PHẨM BỔ TRỢ
+# 5. HIỂN THỊ KẾT QUẢ GỌN GÀNG
 # ---------------------------------------------------------
 st.markdown("---")
 st.markdown("### 📊 Tóm tắt Quyền lợi")
