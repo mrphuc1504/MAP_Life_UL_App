@@ -87,34 +87,43 @@ st.title("🛡️ Mobile UL")
 st.caption("Công cụ minh họa dòng tiền & tư vấn bảo hiểm tối ưu trên di động")
 
 # ---------------------------------------------------------
-# 2. KHU VỰC NHẬP LIỆU TRỰC TIẾP TRÊN MÀN HÌNH CHÍNH (MOBILE LAYOUT)
+# 2. KHU VỰC NHẬP LIỆU & QUẢN LÝ TRẠNG THÁI THÔNG MINH
 # ---------------------------------------------------------
 st.markdown("### 📋 1. Chọn sản phẩm BH")
 product_choice = st.selectbox(
     "Sản phẩm:",
     ["MAP Life Hạnh Phúc (UL2)", "MAP Life Bình An (UL3)"],
     label_visibility="collapsed",
-    key="prod_choice",
+    key="product_choice_widget",
 )
 
-if "UL2" in product_choice:
-    prod_code = "UL2"
+new_prod_code = "UL2" if "UL2" in product_choice else "UL3"
+
+# Khởi tạo hoặc reset trạng thái khi đổi sản phẩm
+if "current_prod" not in st.session_state or st.session_state.current_prod != new_prod_code:
+    st.session_state.current_prod = new_prod_code
+    if new_prod_code == "UL2":
+        st.session_state.tp_input = 10.0
+        st.session_state.sa_input = 250.0
+    else:
+        st.session_state.tp_input = 8.0
+        st.session_state.sa_input = 200.0
+
+prod_code = new_prod_code
+if prod_code == "UL2":
     prod_name = "MAP Life Hạnh Phúc"
     min_term, max_term = 4, 20
-    default_tp_m = 10.0
     abs_min_tp = 10_000_000
     abs_min_sa = 250_000_000
 else:
-    prod_code = "UL3"
     prod_name = "MAP Life Bình An"
     min_term, max_term = 3, 20
-    default_tp_m = 8.0
     abs_min_tp = 8_000_000
     abs_min_sa = 200_000_000
 
 st.markdown("---")
 st.markdown("### 👤 2. Thông tin KH")
-fullname = st.text_input("Họ và tên NĐBH", "NGUYỄN VĂN A")
+fullname = st.text_input("Họ và tên NĐBH", "Lộc Đại Phu")
 gender = st.radio("Giới tính", ["Nam", "Nữ"], horizontal=True)
 
 birth_date = st.date_input(
@@ -143,13 +152,6 @@ st.info(
 
 st.markdown("---")
 st.markdown("### 💰 3. Thông tin Hợp đồng")
-
-if (
-    "prev_prod_tp" not in st.session_state
-    or st.session_state.prev_prod_tp != prod_code
-):
-    st.session_state.tp_input = default_tp_m
-    st.session_state.prev_prod_tp = prod_code
 
 tp_in_millions = st.number_input(
     "Phí cơ bản hàng năm (Triệu VNĐ):",
@@ -181,17 +183,14 @@ dynamic_min_sa = max(abs_min_sa, target_premium * sam_min_mult)
 dynamic_max_sa = target_premium * sam_max_mult
 min_sa_m = float(dynamic_min_sa / 1_000_000)
 
-# Khởi tạo hoặc cập nhật trạng thái STBH thông minh (không bị reset cứng khi thay đổi phí)
-if "prev_prod" not in st.session_state or st.session_state.prev_prod != prod_code:
-    st.session_state.prev_prod = prod_code
-    st.session_state.sa_input = min_sa_m
-
-if st.session_state.sa_input < min_sa_m:
+# Đồng bộ tự động giới hạn STBH theo phí mới
+if "sa_input" not in st.session_state or st.session_state.sa_input < min_sa_m:
     st.session_state.sa_input = min_sa_m
 
 sa_in_millions = st.number_input(
     "Số Tiền Bảo Hiểm (STBH) chính (Triệu VNĐ):",
-    min_value=0.0,
+    min_value=min_sa_m,
+    max_value=float(dynamic_max_sa / 1_000_000),
     step=10.0,
     format="%g",
     key="sa_input",
@@ -204,11 +203,6 @@ st.caption(
     f"- Tối thiểu (Min): **{fmt_vnd(dynamic_min_sa)}**\n"
     f"- Tối đa (Max): **{fmt_vnd(dynamic_max_sa)}**"
 )
-
-if sum_assured < dynamic_min_sa or sum_assured > dynamic_max_sa:
-    st.warning(
-        f"⚠️ STBH ngoài khung cho phép ({fmt_vnd(dynamic_min_sa)} - {fmt_vnd(dynamic_max_sa)})"
-    )
 
 # ---------------------------------------------------------
 # SẢN PHẨM BỔ TRỢ (RIDERS)
@@ -591,7 +585,7 @@ if riders_summary:
     for r in riders_summary:
         st.markdown(f"- {r}")
 else:
-    st.markdown("🛡️ **Sản phẩm bổ trợ:** Không có")
+    st.markdown("🛡️️ **Sản phẩm bổ trợ:** Không có")
 
 st.markdown("---")
 
