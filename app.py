@@ -123,7 +123,7 @@ else:
 
 st.markdown("---")
 st.markdown("### 👤 2. Thông tin KH")
-fullname = st.text_input("Họ và tên NĐBH", "Lộc Đại Phu")
+fullname = st.text_input("Họ và tên NĐBH", "NGUYỄN VĂN A")
 gender = st.radio("Giới tính", ["Nam", "Nữ"], horizontal=True)
 
 birth_date = st.date_input(
@@ -236,7 +236,7 @@ if use_cir2:
     )
     sa_cir2 = int(sa_cir2_m * 1_000_000)
 
-use_pa = st.checkbox("Bảo hiểm Hỗ trợ TTVV do Tai nạn (PDD1)", value=False)
+use_pa = st.checkbox("Bảo hiểm Hỗ trợ TTVV do Tai nạn (PPD1)", value=False)
 sa_pa = 0
 if use_pa:
     sa_pa_m = st.number_input(
