@@ -182,12 +182,12 @@ else:
 
 st.markdown("---")
 st.markdown("### 👤 2. Thông tin KH")
-fullname = st.text_input("Họ và tên NĐBH", "Lộc Đại Phu")
+fullname = st.text_input("Họ và tên NĐBH", "Nguyễn Văn A")
 gender = st.radio("Giới tính", ["Nam", "Nữ"], horizontal=True)
 
 birth_date = st.date_input(
     "Ngày tháng năm sinh",
-    value=date(1993, 9, 18),
+    value=date(1996, 1, 1),
     min_value=date(1950, 1, 1),
     max_value=date.today(),
     key="dob_input",
